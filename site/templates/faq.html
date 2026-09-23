@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}FAQ — SwarmOps audit ledger for AI agents{% endblock %}
+{% block description %}How the SwarmOps AI agent audit ledger differs from LLM observability, what happens if a superuser edits the database, and what is not built yet.{% endblock %}
+
+{% set faqs = [
+  ("Is this an AI SRE agent?",
+   "No, and deliberately not. We wrap the agent you already run. The first adapter targets HolmesGPT, which entered the CNCF Sandbox in October 2025. The investigation agents in this space are good and improving quickly; the gap is underneath them — no shared, durable, vendor-neutral record of what they were permitted to do and what they did."),
+  ("How is this different from Langfuse, LangSmith or Braintrust?",
+   "Those tools capture traces, spans, latency and cost, and they are excellent at that. They were built for prompt engineering and evaluation rather than audit retention. A trace tells you what happened; it does not record which policy rule permitted the action, which named human accepted responsibility, or the immutable artifact the agent relied on. Retention there is also a pricing tier rather than a compliance guarantee."),
+  ("What stops someone with database access from editing the ledger?",
+   "Three independent layers, because any one of them alone is bypassable by someone already inside. Grants: the application role holds only INSERT and SELECT, so a compromised application cannot mutate history. Triggers: UPDATE, DELETE and TRUNCATE are rejected for every role including the table owner, at statement level so the guarantee holds even on an empty table. The hash chain: it makes a mutation that defeated both of the above detectable afterwards by anyone holding an earlier chain head. Only the third survives a determined superuser, which is exactly why it exists."),
+  ("So a superuser can still destroy the database?",
+   "Yes. We are precise about this rather than marketing around it. The hash chain makes destruction and alteration detectable, not impossible. Detection requires someone holding a previously published chain head — periodically publishing it to a system with a different trust boundary is the missing piece, and it is on the roadmap rather than shipped."),
+  ("Does it slow the agent down?",
+   "The adapter records after each tool call completes, so it adds a hash and a database insert per call — small relative to an LLM round trip. Evidence over 8 KiB goes to a blob store rather than inline. The ledger write takes a transaction-scoped advisory lock to keep the chain a total order, so appends serialise; at agent-action volumes that is not a bottleneck, and the lock is released on commit or crash."),
+  ("Why not put the hash chain on a blockchain?",
+   "Because the threat model does not call for one. A blockchain buys consensus among mutually distrusting parties. Here the parties are you and your auditor, and what they need is that you cannot quietly rewrite your own history — which a hash chain plus a periodically published head already gives, without operating a distributed ledger."),
+  ("What does an auditor actually receive?",
+   "A PDF generated directly from the ledger. It leads with the integrity verdict and a plain-language narrative answering six questions — what broke, what the agent examined, what it proposed, who authorised it, when it executed, whether it worked — then the structured records, then an appendix with the full evidence for each action. The test we hold it to is that someone unfamiliar with the project can read it cold and understand what happened without anyone narrating it."),
+  ("Can an agent approve its own action?",
+   "Not in a way that produces a valid record. An execute record is schema-invalid unless it carries an approver and points at the approve record that authorised it. The approver identity comes from the authenticated session your identity provider issued, never from the request body. Policy auto-approval exists as a distinct approver_type so that it is visible as such, and automated approvals made by an unattended harness are labelled by approval_channel and flagged in both the dashboard and the PDF — an automated approval is never dressed up as human review."),
+  ("Does it work with agents other than HolmesGPT?",
+   "The schema and ledger are vendor-neutral by design; the adapter is the per-vendor part, and it is deliberately thin. Today HolmesGPT is the only shipped adapter. Anything that can emit a tool call and a conclusion can be adapted, and that is most of what a second integration involves."),
+  ("What is the pricing?",
+   "Not set yet. Design partners get it free while we find out where the chain breaks on real incidents, and pricing follows from what that turns out to be worth."),
+  ("Is my data sent to you?",
+   "No. SwarmOps runs in your infrastructure. The ledger database, the evidence blobs and the dashboard are all yours, and the dashboard makes no third-party requests — fonts and scripts are served from your own host, so it functions air-gapped and leaks no page-view telemetry."),
+  ("What is not built yet?",
+   "Honestly: the trial loop across many real incidents has not been run at scale; Slack approval is designed but the shipped gates are web and CLI; there is no Kubernetes toolset exercised yet because the reference environment runs as local processes; and chain-head publication to an external trust boundary is roadmap, not shipped.")
+] %}
+
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {% for q, a in faqs %}
+    {
+      "@type": "Question",
+      "name": {{ q | tojson }},
+      "acceptedAnswer": { "@type": "Answer", "text": {{ a | tojson }} }
+    }{{ "," if not loop.last }}
+    {% endfor %}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="wrap narrow">
+    <div class="section-head">
+      <div class="kicker">FAQ</div>
+      <h2>Questions we get asked</h2>
+      <p>Including the ones with answers that don't flatter us.</p>
+    </div>
+
+    {% for q, a in faqs %}
+    <details class="faq">
+      <summary>{{ q }}</summary>
+      <div class="faq-body"><p>{{ a }}</p></div>
+    </details>
+    {% endfor %}
+
+    <div style="margin-top:34px;text-align:center">
+      <p style="color:var(--text-muted)">Something not covered?</p>
+      <a class="btn btn-primary" href="mailto:hello@swarmops.dev">Ask us directly</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

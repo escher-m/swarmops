@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% set nav = 'approvals' %}
+{% block title %}Approvals{% endblock %}
+{% block heading %}Pending approvals{% endblock %}
+{% block subheading %}Nothing executes until someone here decides{% endblock %}
+
+{% block content %}
+{% if not pending %}
+  <div class="card rise"><div class="empty">
+    <div class="empty-title">Nothing is waiting on a human</div>
+    <div class="small">Proposed fixes appear here before anything is applied.</div>
+  </div></div>
+{% else %}
+  <div class="banner mb-2"><span>ℹ</span>
+    <span>Each decision below is written to the append-only ledger with your identity,
+    the reason you give, and the exact command you are authorising. Approving also
+    applies the change unless you untick that box.</span></div>
+
+  {% for item in pending %}
+  {% set pa = item.proposed_action %}
+  <div class="card mb-2 rise" style="animation-delay:{{ loop.index0 * 0.05 }}s">
+    <div class="card-head">
+      <span class="card-title">{{ pa.description[:120] }}</span>
+      <span class="spacer"></span>
+      {{ m.env_chip(item.target.environment) }}
+      <span class="chip {{ 'ok' if pa.reversible else 'bad' }}">
+        {{ 'reversible' if pa.reversible else 'IRREVERSIBLE' }}</span>
+      <span class="chip">{{ pa.blast_radius }}</span>
+      <span class="dim small nowrap">{{ item.requested_at | relative }}</span>
+    </div>
+    <div class="card-body">
+      <dl class="kv">
+        <dt>Incident</dt>
+        <dd><a class="mono" href="/incident/{{ item.incident_id }}">{{ item.incident_id }}</a>
+          <span class="dim small">· {{ item.evidence_count }} evidence artifact(s) on the proposal</span></dd>
+        <dt>Why</dt>
+        <dd class="muted" style="white-space:pre-wrap">{{ item.root_cause or 'No root cause recorded.' }}</dd>
+        <dt>Resource</dt>
+        <dd class="mono">{{ item.target.resource_id }}</dd>
+        <dt>Command to run</dt>
+        <dd><pre style="margin:0;padding:10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:12px;overflow-x:auto;white-space:pre-wrap">{{ pa.command_or_diff }}</pre></dd>
+        <dt>Policy</dt>
+        <dd><span class="mono">{{ item.policy_reference.allowed_by }}</span>
+          {% if item.needs_override %}
+            <div class="banner bad mt-1"><span>⚠</span>
+              <span>Policy does <strong>not</strong> permit executing this change. Approving it
+              requires an explicit human override, recorded under your name.</span></div>
+          {% endif %}</dd>
+      </dl>
+
+      {% if not may_approve %}
+      <div class="banner warn mt-2 no-print"><span>&#9888;</span><span>
+        You are signed in as <strong>{{ user.display_name }}</strong>, who does not hold an
+        approver role. Approving requires one of:
+        <span class="mono">{{ approver_roles | join(', ') }}</span>.
+        You can read this proposal and its evidence, but not decide it.</span></div>
+      {% else %}
+      <form method="post" action="/approvals/{{ item.request_record_id }}/decide" class="mt-2 no-print">
+        <label class="field mb-1"><span>Decision note (required — recorded in the ledger)</span>
+          <textarea name="note" required
+            placeholder="Why are you approving or rejecting this? An auditor will read it."></textarea></label>
+        <div class="flex flex-wrap mt-1">
+          <label class="flex small muted" style="gap:6px">
+            <input type="checkbox" name="execute" value="1" checked style="width:auto"> Apply the change on approval
+          </label>
+          {% if item.needs_override %}
+          <label class="flex small" style="gap:6px;color:var(--bad)">
+            <input type="checkbox" name="override" value="1" style="width:auto"> Approve as a human override
+          </label>
+          {% endif %}
+          <span class="spacer"></span>
+          <button class="btn btn-bad" type="submit" name="decision" value="reject">Reject</button>
+          <button class="btn btn-ok" type="submit" name="decision" value="approve">Approve</button>
+        </div>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+{% endif %}
+{% endblock %}

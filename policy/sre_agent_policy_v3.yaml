@@ -1,0 +1,123 @@
+# Policy governing what autonomous agents may do to this estate.
+#
+# This file is the authority that every ledger record's `policy_reference`
+# points at. It is written to be read by a compliance reviewer, not just parsed:
+# each rule states what it permits and why, so that a record citing
+# "rule:human_approved_reversible_rollback" can be understood by opening this
+# file and reading one block.
+#
+# The sha256 of this file is recorded on every action as `policy_digest`, so an
+# auditor can tell which exact wording was in force when an action was allowed,
+# even after the policy is later revised.
+
+policy_id: sre-agent-policy-v3
+title: Autonomous SRE Agent Action Policy
+version: 3
+effective_from: "2026-09-01"
+owner: platform-security
+
+# Anything not explicitly permitted below is refused. An agent that cannot find
+# a matching rule does not act; it records the refusal and stops.
+default_decision: deny
+
+rules:
+  - id: rule:read_only_investigation
+    description: >-
+      Agents may run read-only diagnostics -- log queries, metric queries, HTTP
+      probes, git history inspection and query plans -- in any environment
+      without prior approval, provided every query and its result are recorded
+      as evidence on the resulting ledger record.
+    applies_to: [investigate]
+    requires_approval: false
+
+  - id: rule:propose_only_no_autoremediation
+    description: >-
+      Agents may propose a remediation and route it for approval. Proposing is
+      not acting: a proposal must state the exact command or diff to be applied,
+      and must not change any resource. This rule is what makes silent
+      auto-remediation impossible to record as compliant.
+    applies_to: [propose_fix, request_approval]
+    requires_approval: false
+
+  - id: rule:human_approval_decision
+    description: >-
+      A human may record an approve or reject decision on a pending proposal.
+      Recording the decision is always permitted and is deliberately separated
+      from acting on it: whether an approved change may then execute is governed
+      by the execution rules below, evaluated again at execution time. Keeping
+      these separate means a decision is never lost merely because the change it
+      approves turns out to be forbidden -- the rejection of the execution is
+      itself recorded.
+    applies_to: [approve, reject]
+    requires_approval: false
+
+  - id: rule:human_approved_reversible_rollback
+    description: >-
+      A reversible, single-service change in a non-production environment may be
+      executed once a named human has approved that specific proposal. Covers
+      deployment rollbacks, workload restarts, resource scaling and
+      configuration changes.
+    applies_to: [execute, rollback]
+    requires_approval: true
+    conditions:
+      environment: [dev, staging]
+      change_type: [rollback_deploy, restart_workload, scale_resource, config_change]
+      reversible: true
+      blast_radius_at_most: single_service
+
+  - id: rule:human_approved_production_change
+    description: >-
+      A reversible production change of an operational kind -- rolling back a
+      deployment, restarting a workload, scaling a resource or changing
+      configuration -- requires approval from a human holding the sre-oncall
+      role. The change kinds are enumerated deliberately: production must never
+      be permitted a category of change that staging is not, and in particular
+      an agent may not ship a code change to production on a single approval.
+    applies_to: [execute, rollback]
+    requires_approval: true
+    approver_roles: [sre-oncall]
+    conditions:
+      environment: [prod]
+      change_type: [rollback_deploy, restart_workload, scale_resource, config_change]
+      reversible: true
+      blast_radius_at_most: single_service
+
+  - id: rule:secret_rotation_requires_security_approval
+    description: >-
+      Rotating or revoking a credential is permitted in any environment once
+      approved, because leaving a leaked credential live is usually worse than
+      rotating it. The approval must be recorded against the specific
+      credential identifier.
+    applies_to: [execute]
+    requires_approval: true
+    conditions:
+      change_type: [secret_rotation]
+
+  - id: rule:deny_irreversible_change
+    description: >-
+      Irreversible changes -- schema migrations, destructive data operations --
+      are never executed by an agent, regardless of approval. A human performs
+      these directly so that responsibility is unambiguous.
+    applies_to: [execute, rollback]
+    decision: deny
+    conditions:
+      reversible: false
+
+  - id: rule:deny_environment_wide_blast_radius
+    description: >-
+      No agent-executed change may affect an entire environment at once, even
+      with approval. Changes at that scale are staged by a human.
+    applies_to: [execute, rollback]
+    decision: deny
+    conditions:
+      blast_radius: [environment_wide]
+
+  - id: human_override
+    description: >-
+      A named human with authority may authorise an action that no other rule
+      permits, accepting personal responsibility for it. Every override is
+      recorded with the approver's identity and their stated reason, and
+      overrides are expected to be rare enough that each one is reviewed.
+    applies_to: [execute, rollback, approve]
+    requires_approval: true
+    requires_override_justification: true

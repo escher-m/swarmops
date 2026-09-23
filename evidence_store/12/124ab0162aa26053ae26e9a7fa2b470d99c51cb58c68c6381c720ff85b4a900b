@@ -1,0 +1,200 @@
+2026-09-18T14:10:00.000Z checkout-api-7d9f4b6c8-axk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00000 user_id=usr-0000
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:01.037Z checkout-api-7d9f4b6c8-bxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00001 user_id=usr-0991
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:02.074Z checkout-api-7d9f4b6c8-cxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00002 user_id=usr-1982
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:03.111Z checkout-api-7d9f4b6c8-dxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00003 user_id=usr-2973
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:04.148Z checkout-api-7d9f4b6c8-exk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00004 user_id=usr-3964
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:05.185Z checkout-api-7d9f4b6c8-axk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00005 user_id=usr-4955
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:06.222Z checkout-api-7d9f4b6c8-bxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00006 user_id=usr-5946
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:07.259Z checkout-api-7d9f4b6c8-cxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00007 user_id=usr-6937
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:08.296Z checkout-api-7d9f4b6c8-dxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00008 user_id=usr-7928
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:09.333Z checkout-api-7d9f4b6c8-exk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00009 user_id=usr-0919
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:10.370Z checkout-api-7d9f4b6c8-axk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00010 user_id=usr-1910
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:11.407Z checkout-api-7d9f4b6c8-bxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00011 user_id=usr-2901
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:12.444Z checkout-api-7d9f4b6c8-cxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00012 user_id=usr-3892
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:13.481Z checkout-api-7d9f4b6c8-dxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00013 user_id=usr-4883
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:14.518Z checkout-api-7d9f4b6c8-exk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00014 user_id=usr-5874
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:15.555Z checkout-api-7d9f4b6c8-axk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00015 user_id=usr-6865
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:16.592Z checkout-api-7d9f4b6c8-bxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00016 user_id=usr-7856
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:17.629Z checkout-api-7d9f4b6c8-cxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00017 user_id=usr-0847
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:18.666Z checkout-api-7d9f4b6c8-dxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00018 user_id=usr-1838
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:19.703Z checkout-api-7d9f4b6c8-exk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00019 user_id=usr-2829
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:20.740Z checkout-api-7d9f4b6c8-axk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00020 user_id=usr-3820
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:21.777Z checkout-api-7d9f4b6c8-bxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00021 user_id=usr-4811
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:22.814Z checkout-api-7d9f4b6c8-cxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00022 user_id=usr-5802
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:23.851Z checkout-api-7d9f4b6c8-dxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00023 user_id=usr-6793
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:24.888Z checkout-api-7d9f4b6c8-exk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00024 user_id=usr-7784
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:25.925Z checkout-api-7d9f4b6c8-axk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00025 user_id=usr-0775
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:26.962Z checkout-api-7d9f4b6c8-bxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00026 user_id=usr-1766
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:27.999Z checkout-api-7d9f4b6c8-cxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00027 user_id=usr-2757
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:28.036Z checkout-api-7d9f4b6c8-dxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00028 user_id=usr-3748
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:29.073Z checkout-api-7d9f4b6c8-exk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00029 user_id=usr-4739
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:30.110Z checkout-api-7d9f4b6c8-axk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00030 user_id=usr-5730
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:31.147Z checkout-api-7d9f4b6c8-bxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00031 user_id=usr-6721
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:32.184Z checkout-api-7d9f4b6c8-cxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00032 user_id=usr-7712
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:33.221Z checkout-api-7d9f4b6c8-dxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00033 user_id=usr-0703
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:34.258Z checkout-api-7d9f4b6c8-exk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00034 user_id=usr-1694
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:35.295Z checkout-api-7d9f4b6c8-axk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00035 user_id=usr-2685
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:36.332Z checkout-api-7d9f4b6c8-bxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00036 user_id=usr-3676
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:37.369Z checkout-api-7d9f4b6c8-cxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00037 user_id=usr-4667
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:38.406Z checkout-api-7d9f4b6c8-dxk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00038 user_id=usr-5658
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'
+2026-09-18T14:10:39.443Z checkout-api-7d9f4b6c8-exk2 ERROR [checkout.handler] Unhandled exception serving POST /checkout request_id=req-00039 user_id=usr-6649
+    Traceback (most recent call last):
+      File "/app/checkout/handler.py", line 142, in create_order
+        total = cart.subtotal + cart.shipping_cost
+    TypeError: unsupported operand type(s) for +: 'Decimal' and 'NoneType'

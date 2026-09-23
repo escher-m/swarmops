@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}How SwarmOps compares — observability, AI SRE, GRC{% endblock %}
+{% block description %}Where an AI agent audit ledger sits against LLM observability, AI SRE agents and AI governance platforms — with the capability axes that actually differ.{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Landscape</div>
+      <h2>Three adjacent categories. None of them is this.</h2>
+      <p>
+        People reach for one of three things when they ask "what did the agent do?" Each is
+        good at its job. None produces a record a compliance lead can hand an auditor.
+      </p>
+    </div>
+
+    <h3 style="margin-bottom:14px">1. LLM observability &mdash; Langfuse, LangSmith, Braintrust, Arize Phoenix</h3>
+    <p style="color:var(--text-muted);max-width:780px">
+      These capture traces, spans, latency and cost across agent frameworks, and several are
+      SOC 2 Type II themselves. But they were built for prompt engineering and evaluation
+      rather than audit retention, and being SOC 2 compliant as a vendor is a different thing
+      from producing evidence that satisfies <em>your</em> SOC 2 audit. Retention is a pricing
+      tier, not a compliance guarantee &mdash; Langfuse, for instance, tiers retention from 30
+      days upward. Self-hosting gives you control over storage, but that control is something
+      you configure and operate; it does not arrive pre-hardened for audit use.
+    </p>
+    <p style="color:var(--text-muted);max-width:780px">
+      Most importantly: a trace records <em>what happened</em>. It does not record which policy
+      rule permitted it, or which named human accepted responsibility.
+    </p>
+
+    <h3 style="margin:34px 0 14px">2. AI SRE agents &mdash; HolmesGPT, Aurora, K8sGPT, Cleric, Resolve.ai, Traversal</h3>
+    <p style="color:var(--text-muted);max-width:780px">
+      This is the category we deliberately do not compete in &mdash; we wrap it. These tools
+      investigate, and increasingly remediate. Approval gating is already common and often the
+      default: no open-source tool today runs fully autonomously without human approval, and
+      the prevailing safe pattern is for the agent to open a pull request while a human keeps
+      the merge button. Robusta can open PRs in an opt-in operator mode; Cleric supports
+      autonomous or approval-gated actions; Rootly requires human approval.
+    </p>
+    <p style="color:var(--text-muted);max-width:780px">
+      The gap is not that approval is missing. It is that each vendor's approval lives inside
+      that vendor's product, in that vendor's trace format, with that vendor's retention. Run
+      two agent platforms and you have two incompatible answers to the same audit question.
+    </p>
+
+    <h3 style="margin:34px 0 14px">3. AI governance and GRC &mdash; Vanta, Drata, Credo AI, and newer agent-native entrants</h3>
+    <p style="color:var(--text-muted);max-width:780px">
+      Closest in intent, and where the genuinely new competition is emerging. Agent-native
+      governance proxies now exist that put a policy engine in front of every tool call and
+      land the result in a tamper-evident trail. The prevailing view in this category is that
+      you can no longer separate enforcing a policy from auditing it: a governance layer that
+      observes logs after the fact is already insufficient for high-risk systems under the EU
+      AI Act, whose high-risk obligations reached full enforcement on 2 August 2026.
+    </p>
+    <p style="color:var(--text-muted);max-width:780px">
+      We agree with that framing entirely. Where we differ is scope and posture &mdash; see below.
+    </p>
+  </div>
+</section>
+
+<section class="section" style="background:var(--bg-raised);border-block:1px solid var(--border)">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Capability axes</div>
+      <h2>The dimensions that actually differ</h2>
+      <p>
+        These are the axes on which an audit ledger is or isn't useful. Our column is
+        verified &mdash; every claim maps to a test or a script in the repository.
+      </p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="min-width:270px">Capability</th>
+            <th class="col-us">SwarmOps</th>
+            <th>LLM observability</th>
+            <th>AI SRE agents</th>
+            <th>AI governance / GRC</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>One schema across agent vendors</strong><br>
+              <span style="color:var(--text-dim);font-size:13.5px">Same record shape whether the actor was HolmesGPT, an in-house agent, or next year's vendor</span></td>
+            <td class="col-us"><span class="yes">Yes</span> — vendor-neutral by design</td>
+            <td>Per-framework SDK</td>
+            <td>Per-vendor trace format</td>
+            <td>Control-level, not action-level</td>
+          </tr>
+          <tr>
+            <td><strong>Policy rule cited on every action</strong><br>
+              <span style="color:var(--text-dim);font-size:13.5px">A named rule, not "RBAC allowed it", with the policy text hash pinned</span></td>
+            <td class="col-us"><span class="yes">Yes</span> — <code>allowed_by</code> + <code>policy_digest</code></td>
+            <td><span class="no">Not modelled</span></td>
+            <td>Policy is configuration, not recorded per action</td>
+            <td>Policy-level, not per action</td>
+          </tr>
+          <tr>
+            <td><strong>Evidence content-addressed and immutable</strong><br>
+              <span style="color:var(--text-dim);font-size:13.5px">The artifact the agent consulted, stored by hash of its own bytes</span></td>
+            <td class="col-us"><span class="yes">Yes</span> — re-hashed on every verification</td>
+            <td>Traces, with tiered retention</td>
+            <td><span class="no">Not retained as evidence</span></td>
+            <td>Document-centric</td>
+          </tr>
+          <tr>
+            <td><strong>Append-only enforced at the database</strong><br>
+              <span style="color:var(--text-dim);font-size:13.5px">Not "our code doesn't call UPDATE" — a privilege an auditor can test</span></td>
+            <td class="col-us"><span class="yes">Yes</span> — grants + triggers, 10 tested refusals</td>
+            <td><span class="no">Not a design goal</span></td>
+            <td><span class="no">Not a design goal</span></td>
+            <td>Varies by vendor</td>
+          </tr>
+          <tr>
+            <td><strong>Customer-runnable integrity proof</strong><br>
+              <span style="color:var(--text-dim);font-size:13.5px">A script <em>you</em> run that re-derives every hash and reports breaks</span></td>
+            <td class="col-us"><span class="yes">Yes</span> — <code>verify_chain.py</code>, shares no code with the writer</td>
+            <td><span class="no">Not offered</span></td>
+            <td><span class="no">Not offered</span></td>
+            <td>Attestation-based</td>
+          </tr>
+          <tr>
+            <td><strong>Execution structurally requires approval</strong><br>
+              <span style="color:var(--text-dim);font-size:13.5px">An unapproved execute record is schema-invalid, not merely discouraged</span></td>
+            <td class="col-us"><span class="yes">Yes</span> — enforced in JSON Schema</td>
+            <td>N/A — read-only</td>
+            <td><span class="part">Configurable policy</span></td>
+            <td>N/A — no execution path</td>
+          </tr>
+          <tr>
+            <td><strong>Executes the exact bytes approved</strong><br>
+              <span style="color:var(--text-dim);font-size:13.5px">Command read back from the immutable blob the approver saw, not re-derived</span></td>
+            <td class="col-us"><span class="yes">Yes</span></td>
+            <td>N/A</td>
+            <td>Varies</td>
+            <td>N/A</td>
+          </tr>
+          <tr>
+            <td><strong>Auditor-ready export</strong><br>
+              <span style="color:var(--text-dim);font-size:13.5px">A PDF a SOC 2 auditor reads cold, leading with the integrity verdict</span></td>
+            <td class="col-us"><span class="yes">Yes</span> — PDF + CSV, narrative first</td>
+            <td>Raw data export</td>
+            <td>Incident summaries</td>
+            <td><span class="yes">Core to the category</span></td>
+          </tr>
+          <tr>
+            <td><strong>Runs entirely in your infrastructure</strong><br>
+              <span style="color:var(--text-dim);font-size:13.5px">Agent traces and evidence never leave your network</span></td>
+            <td class="col-us"><span class="yes">Yes</span> — self-hosted, no third-party requests</td>
+            <td>Self-hosting available</td>
+            <td>Mixed</td>
+            <td>Mostly SaaS</td>
+          </tr>
+          <tr>
+            <td><strong>Does the investigation itself</strong><br>
+              <span style="color:var(--text-dim);font-size:13.5px">Diagnoses the incident and writes the remediation</span></td>
+            <td class="col-us"><span class="no">No</span> — deliberately. We wrap yours.</td>
+            <td><span class="no">No</span></td>
+            <td><span class="yes">Yes</span> — this is their job</td>
+            <td><span class="no">No</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="color:var(--text-dim);font-size:13.5px;margin-top:16px">
+      Category-level comparison; individual products vary and this space moves quickly.
+      Last reviewed {{ today }}.
+    </p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap narrow">
+    <h2>Where we would lose</h2>
+    <p style="color:var(--text-muted);margin-top:14px">
+      A comparison page that finds its author winning every row is a page nobody believes.
+      Honest places not to choose us:
+    </p>
+    <ul style="color:var(--text-muted);line-height:1.8">
+      <li><strong>You want fewer vendors, not more.</strong> If your agent platform already
+        gates approvals and you run exactly one and expect to keep it, its built-in trail may
+        be enough. Our value compounds with heterogeneity.</li>
+      <li><strong>You need broad GRC coverage.</strong> We record agent actions. We do not
+        manage SOC 2 controls, vendor risk or policy attestation. We are a source of evidence
+        for those systems, not a replacement.</li>
+      <li><strong>You want to debug prompts.</strong> Use an observability tool. We record
+        consequential actions, not every token; our record is the wrong granularity for
+        iterating on a prompt.</li>
+      <li><strong>You need it in production this quarter.</strong> We're pre-launch.
+        Design partners, yes. Procurement, not yet.</li>
+    </ul>
+
+    <div class="note" style="margin-top:28px">
+      <span>ℹ</span>
+      <div>
+        <p><strong>Sources.</strong> Category positioning and regulatory dates come from
+        published analyses of the 2026 landscape; see the
+        <a href="/resources/">resources page</a> for the reference list.</p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

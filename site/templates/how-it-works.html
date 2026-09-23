@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}How SwarmOps works — from agent tool call to auditor-ready PDF{% endblock %}
+{% block description %}SwarmOps intercepts agent tool calls, records each as immutable evidence, gates every change behind a human approval, and writes it all to a hash-chained ledger.{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Architecture</div>
+      <h2>How it works</h2>
+      <p>Five moving parts. The agent is the one you already have.</p>
+    </div>
+
+    <div class="terminal reveal" style="margin-bottom:44px">
+      <div class="terminal-bar">
+        <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+        <span class="terminal-title">deployed inside your network</span>
+      </div>
+<pre>  <span class="t-dim">[your agent]</span> ──tool calls──▶ <span class="t-key">[adapter]</span> ──records──▶ <span class="t-key">[append-only ledger]</span>
+   HolmesGPT                                      Postgres, hash-chained
+   or your own                                             │
+                                                           │
+  <span class="t-key">[approval gate]</span> ◀── propose_fix ──────────────────────┤
+        │  Slack · web · CLI                                │
+        │                                                   │
+        └── approve ──▶ <span class="t-key">[executor]</span> ──execute + outcome──▶┤
+                                                            │
+                                                  <span class="t-key">[compliance dashboard]</span>
+                                            filter · incident view · PDF export</pre>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card reveal">
+        <span class="badge">1</span>
+        <h3 style="margin-top:10px">The adapter intercepts tool calls</h3>
+        <p>
+          Every agent framework has one seam in common: tool invocation. The adapter subclasses
+          the agent's own tool class and overrides <code>invoke</code>, capturing the exact
+          command and the exact output the agent saw.
+        </p>
+        <p>
+          A subclass rather than a monkeypatch, deliberately: it appears in stack traces and
+          breaks loudly on a library upgrade, instead of a patched attribute silently ceasing
+          to be consulted.
+        </p>
+      </div>
+
+      <div class="card reveal">
+        <span class="badge">2</span>
+        <h3 style="margin-top:10px">Each call becomes evidence</h3>
+        <p>
+          Output under 8 KiB is stored inline, covered by the record's own hash. Anything
+          larger goes to a content-addressed blob store where the SHA-256 of the bytes
+          <em>is</em> the filename.
+        </p>
+        <p>
+          Secrets are masked before storage. A ledger that faithfully records a leaked
+          credential has helpfully made a second copy of it.
+        </p>
+      </div>
+
+      <div class="card reveal">
+        <span class="badge">3</span>
+        <h3 style="margin-top:10px">Policy is evaluated, not assumed</h3>
+        <p>
+          Every action is checked against a policy document you own. The matching rule is
+          recorded on the action, along with the SHA-256 of the policy text in force.
+        </p>
+        <p>
+          Default deny. Explicit denies beat matching allows, so a deny rule cannot be routed
+          around by a broader permission elsewhere in the file. Missing facts fail closed — if
+          we can't tell whether a change is reversible, it isn't treated as reversible.
+        </p>
+      </div>
+
+      <div class="card reveal">
+        <span class="badge">4</span>
+        <h3 style="margin-top:10px">Nothing executes without a recorded approval</h3>
+        <p>
+          A proposal is routed to a human. The decision, the approver's identity from your
+          IdP, and their stated reason all become a ledger record.
+        </p>
+        <p>
+          The executor then re-derives its own authority: given an approve record, it walks the
+          chain back through the request to the proposal, re-evaluates policy, and runs the
+          command read out of the immutable evidence blob the approver actually saw.
+        </p>
+      </div>
+    </div>
+
+    <div class="card reveal" style="margin-top:20px">
+      <span class="badge">5</span>
+      <h3 style="margin-top:10px">The chain makes all of it checkable</h3>
+      <p>
+        Each record commits to the hash of its predecessor. Editing record N changes N's hash,
+        which was an input to N+1's hash, and so on to the end of the ledger.
+      </p>
+      <p>
+        Verification runs five independent checks, because each catches a different attack:
+        hash integrity catches edits; chain linkage catches deletion and reordering, which
+        per-record hashing alone would miss; sequence density catches a removal by someone who
+        could also fix the links; schema revalidation catches malformed history; and
+        evidence re-hashing catches a swapped log excerpt in a ledger that was never touched.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="border-top:1px solid var(--border)">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <div class="kicker">The result</div>
+      <h2>One incident, end to end</h2>
+      <p>
+        The five steps above produce this. Six questions answered in order, then every
+        diagnostic step with the evidence it rested on.
+      </p>
+    </div>
+    <div class="shot-frame reveal">
+      <div class="shot-bar">
+        <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+        <span class="shot-url">ledger.acme.internal/incident/INC-20260923-REVQ01</span>
+      </div>
+      <img src="/assets/shots/incident.jpg" width="1440" height="1050"
+           loading="lazy" decoding="async"
+           alt="SwarmOps incident view showing what broke, what the agent examined, what it proposed and who approved it">
+    </div>
+    <p style="text-align:center;color:var(--text-dim);font-size:13.5px;margin-top:16px">
+      A real capture of the running dashboard. <a href="/">More screenshots on the homepage.</a>
+    </p>
+  </div>
+</section>
+
+<section class="section" style="background:var(--bg-raised);border-block:1px solid var(--border)">
+  <div class="wrap narrow">
+    <h2>Deployment</h2>
+    <p style="color:var(--text-muted);margin-top:14px">
+      SwarmOps runs inside your network, next to the agent it records. The ledger database is
+      yours. Evidence blobs are yours. Nothing is sent anywhere, and the dashboard makes no
+      third-party requests at all — the fonts and scripts are served from your own host, so it
+      works in an air-gapped environment and leaks no page-view telemetry to a CDN.
+    </p>
+    <p style="color:var(--text-muted)">
+      Authentication is your identity provider over OpenID Connect. The authenticated subject
+      becomes the <code>approver_id</code> in the ledger — an identity your own IdP can vouch
+      for, which is the point. The dashboard refuses to start unauthenticated unless an
+      operator explicitly opts in, and refuses that opt-in entirely in production.
+    </p>
+    <div class="note" style="margin-top:22px">
+      <span>ℹ</span>
+      <div><p><strong>Status:</strong> the ledger, schema, policy engine, approval gate,
+      executor, dashboard and export are built and tested. We're looking for design partners
+      to run it against real incidents.</p></div>
+    </div>
+    <div style="margin-top:26px"><a class="btn btn-lg btn-primary" href="/waitlist/">Join the waitlist</a></div>
+  </div>
+</section>
+{% endblock %}

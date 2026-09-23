@@ -1,0 +1,456 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://swarmops.dev/schema/agent_action_record.schema.json",
+  "title": "Agent Action Record",
+  "description": "A single tamper-evident ledger entry describing one consequential action taken by an AI agent: who acted, under what policy, on what evidence, approved by whom, with what outcome. Records are append-only and hash-chained.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_id",
+    "incident_id",
+    "timestamp",
+    "actor",
+    "action_type",
+    "summary",
+    "target",
+    "policy_reference",
+    "evidence",
+    "approver",
+    "outcome",
+    "prev_record_hash",
+    "record_hash"
+  ],
+  "properties": {
+    "schema_version": {
+      "description": "Version of this schema the record was written against. Consumers must reject records whose major version they do not understand.",
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "record_id": {
+      "description": "Globally unique identifier for this record. Immutable once written.",
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "incident_id": {
+      "description": "Correlation key tying every record of one incident together (investigate -> propose_fix -> approve -> execute -> outcome). Required so an auditor can reconstruct a complete chain without inferring it from timestamps.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "in_response_to": {
+      "description": "record_id of the record that directly caused this one, e.g. an approve record points at the request_approval it answers, and an execute record points at the approve that authorized it. Absent on the first record of an incident.",
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "timestamp": {
+      "description": "When the action occurred, ISO 8601 with an explicit UTC offset (Z). Not when the record was written.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    },
+    "actor": {
+      "description": "The agent or system that performed the action. For human-performed actions (approve/reject) the actor is still the platform that recorded it; the human is named in `approver`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent_name", "agent_version", "tool_or_platform", "invocation_id"],
+      "properties": {
+        "agent_name": {
+          "description": "Logical name of the acting agent, e.g. 'holmesgpt-investigator'.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "agent_version": {
+          "description": "Version of the agent. Pin this precisely enough to reproduce behaviour: a release tag or commit sha, not 'latest'.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "tool_or_platform": {
+          "description": "The underlying platform that executed the agent, e.g. 'holmesgpt'. This is the vendor-neutral join key across agent vendors.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "invocation_id": {
+          "description": "Identifier of the single agent run that produced this action. All records from one HolmesGPT invocation share it.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "model": {
+          "description": "Underlying LLM that produced the reasoning, when applicable. Auditors ask this; capture it when the platform exposes it.",
+          "type": "string",
+          "maxLength": 128
+        }
+      }
+    },
+    "action_type": {
+      "description": "What kind of consequential action this record captures.",
+      "type": "string",
+      "enum": [
+        "investigate",
+        "propose_fix",
+        "request_approval",
+        "approve",
+        "reject",
+        "execute",
+        "rollback"
+      ]
+    },
+    "summary": {
+      "description": "One-line human-readable statement of what happened, written so a compliance reviewer understands the record without decoding the structured fields.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "target": {
+      "description": "The resource the action was taken against or about.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resource_type", "resource_id", "environment"],
+      "properties": {
+        "resource_type": {
+          "description": "Kind of resource, e.g. 'k8s_deployment', 'database', 'git_repository', 'http_endpoint'.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "resource_id": {
+          "description": "Stable identifier of the resource within its environment, e.g. 'default/checkout-api' or 'orders-db/primary'.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "environment": {
+          "description": "Deployment environment. Drives policy: production actions demand stricter approval.",
+          "type": "string",
+          "enum": ["prod", "staging", "dev"]
+        }
+      }
+    },
+    "policy_reference": {
+      "description": "The specific rule that permitted this action. A record that only says 'RBAC allowed it' is not auditable; `allowed_by` must name a concrete rule or declare a human override.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_id", "policy_description", "allowed_by"],
+      "properties": {
+        "policy_id": {
+          "description": "Stable identifier of the policy document and version, e.g. 'sre-agent-policy-v3'.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "policy_description": {
+          "description": "Human-readable statement of what the policy permits, quoted closely enough that a reviewer need not open the policy document.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "allowed_by": {
+          "description": "The named rule within the policy that authorized this action, e.g. 'rule:read_only_investigation'. The literal 'human_override' is permitted only when a named human accepted responsibility, in which case `approver` must be present and of type 'human'.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "policy_digest": {
+          "description": "sha256 of the exact policy document text in force at the time. Proves which wording was actually applied, even if the policy is later edited.",
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "evidence": {
+      "description": "Everything the actor looked at to justify this action. An action with no evidence is permitted only for purely procedural records; investigate and propose_fix records must cite at least one item.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence_item" }
+    },
+    "proposed_action": {
+      "description": "The concrete change being proposed or executed. Required on propose_fix and execute records so that 'what did it propose' and 'what did it actually do' are answerable without reading prose.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "change_type", "command_or_diff", "reversible"],
+      "properties": {
+        "description": {
+          "description": "Plain-language statement of the intended change and why it addresses the finding.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "change_type": {
+          "description": "Category of change, used to route approval requirements.",
+          "type": "string",
+          "enum": [
+            "config_change",
+            "rollback_deploy",
+            "scale_resource",
+            "restart_workload",
+            "code_change",
+            "secret_rotation",
+            "schema_migration",
+            "no_action"
+          ]
+        },
+        "command_or_diff": {
+          "description": "The exact command, patch or manifest diff that will be applied. Recorded verbatim so the approver approves the real thing, not a paraphrase.",
+          "type": "string",
+          "maxLength": 20000
+        },
+        "reversible": {
+          "description": "Whether the change can be undone by a rollback action without data loss.",
+          "type": "boolean"
+        },
+        "blast_radius": {
+          "description": "Reviewer-facing estimate of how much is affected if this goes wrong.",
+          "type": "string",
+          "enum": ["single_resource", "single_service", "multi_service", "environment_wide"]
+        }
+      }
+    },
+    "approver": {
+      "description": "Who authorized the action. Null on records that need no authorization (investigations, and the proposal itself). Must be populated on approve, reject, and on any execute of a production-affecting change.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["approver_id", "approver_type", "approved_at", "approval_channel"],
+          "properties": {
+            "approver_id": {
+              "description": "Identity of the approver, resolvable to a real person or to the policy that auto-approved. Not a display name alone.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "approver_type": {
+              "description": "Whether a human accepted responsibility or a policy rule auto-approved.",
+              "type": "string",
+              "enum": ["human", "policy_auto_approved"]
+            },
+            "approved_at": {
+              "description": "When the approval decision was made, ISO 8601 UTC.",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+            },
+            "approval_channel": {
+              "description": "Where the decision was captured, e.g. 'cli', 'web_dashboard', 'slack'. Tells an auditor where to find corroborating logs.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "approver_display_name": {
+              "description": "Human-friendly name for dashboard display. Never the sole identifier.",
+              "type": "string",
+              "maxLength": 256
+            },
+            "decision_note": {
+              "description": "Free-text rationale the approver gave at decision time.",
+              "type": "string",
+              "maxLength": 2000
+            }
+          }
+        }
+      ]
+    },
+    "outcome": {
+      "description": "What resulted from the action.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "details"],
+      "properties": {
+        "status": {
+          "description": "'pending' is legitimate and expected on request_approval records; it must be resolved by a later record in the chain, never by mutating this one.",
+          "type": "string",
+          "enum": ["success", "failure", "pending"]
+        },
+        "details": {
+          "description": "What actually happened, including error text on failure.",
+          "type": "string",
+          "maxLength": 5000
+        },
+        "duration_ms": {
+          "description": "How long the action took, where measurable.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "prev_record_hash": {
+      "description": "record_hash of the immediately preceding record in the ledger. The genesis record uses 64 zeros. This is what makes deletion and reordering detectable.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "record_hash": {
+      "description": "sha256 over the RFC 8785 canonical JSON of this record with the record_hash field itself removed. Because prev_record_hash is part of the hashed content, altering any earlier record breaks every hash after it.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "$defs": {
+    "evidence_item": {
+      "description": "One artifact the actor consulted. Immutable once the record is written: inline content is covered by record_hash, blob content is content-addressed by its own sha256.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_type", "source", "snapshot_ref_or_inline", "retrieved_at"],
+      "properties": {
+        "evidence_type": {
+          "description": "What kind of artifact this is.",
+          "type": "string",
+          "enum": [
+            "log_query",
+            "metric_query",
+            "diff",
+            "config_snapshot",
+            "trace",
+            "command_output",
+            "git_history",
+            "http_probe",
+            "agent_reasoning"
+          ]
+        },
+        "source": {
+          "description": "Where it came from, precisely enough to re-run: a query string, an endpoint, a file path, or a git ref.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "snapshot_ref_or_inline": {
+          "description": "The evidence content itself, held inline when small or as a content-addressed blob when large.",
+          "oneOf": [
+            { "$ref": "#/$defs/evidence_inline" },
+            { "$ref": "#/$defs/evidence_blob" }
+          ]
+        },
+        "retrieved_at": {
+          "description": "When the evidence was captured, ISO 8601 UTC. May precede the record timestamp.",
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+        },
+        "redacted": {
+          "description": "True when content was scrubbed before storage, e.g. a leaked secret replaced by a placeholder. Auditors must be able to tell redaction from absence.",
+          "type": "boolean"
+        }
+      }
+    },
+    "evidence_inline": {
+      "description": "Evidence small enough to live in the record. Its integrity is guaranteed by record_hash.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "content_type", "content"],
+      "properties": {
+        "kind": { "const": "inline" },
+        "content_type": {
+          "description": "IANA media type of the content, e.g. 'text/plain', 'application/json'.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "content": {
+          "description": "The evidence verbatim. Keep under 8 KiB; larger artifacts belong in a blob.",
+          "type": "string",
+          "maxLength": 8192
+        },
+        "truncated": {
+          "description": "True when this inline copy is an excerpt of a larger artifact.",
+          "type": "boolean"
+        }
+      }
+    },
+    "evidence_blob": {
+      "description": "Evidence held in content-addressed object storage. The sha256 is both the integrity proof and the storage key, so the blob cannot be swapped without detection.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "content_type", "sha256", "uri", "size_bytes"],
+      "properties": {
+        "kind": { "const": "blob" },
+        "content_type": {
+          "description": "IANA media type of the stored blob.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "sha256": {
+          "description": "sha256 of the blob bytes. Also its filename in the store.",
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "uri": {
+          "description": "Where to fetch the blob, e.g. 'file://evidence_store/ab/abcd...' or an s3:// URL.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "size_bytes": {
+          "description": "Size of the blob in bytes.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "preview": {
+          "description": "Short excerpt rendered in the dashboard so a reviewer need not download the blob to get the gist.",
+          "type": "string",
+          "maxLength": 2048
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "A proposed fix must state the concrete change and cite the evidence behind it.",
+      "if": { "properties": { "action_type": { "const": "propose_fix" } }, "required": ["action_type"] },
+      "then": {
+        "required": ["proposed_action"],
+        "properties": { "evidence": { "minItems": 1 } }
+      }
+    },
+    {
+      "description": "An investigation must record what it looked at, otherwise it proves nothing.",
+      "if": { "properties": { "action_type": { "const": "investigate" } }, "required": ["action_type"] },
+      "then": { "properties": { "evidence": { "minItems": 1 } } }
+    },
+    {
+      "description": "Approve and reject records must name the decision-maker and answer a specific prior request.",
+      "if": {
+        "properties": { "action_type": { "enum": ["approve", "reject"] } },
+        "required": ["action_type"]
+      },
+      "then": {
+        "required": ["in_response_to"],
+        "properties": { "approver": { "type": "object" } }
+      }
+    },
+    {
+      "description": "An execution must state what it ran and point at the approval that authorized it. This is the rule that makes silent auto-remediation impossible to record as compliant.",
+      "if": { "properties": { "action_type": { "const": "execute" } }, "required": ["action_type"] },
+      "then": {
+        "required": ["proposed_action", "in_response_to"],
+        "properties": { "approver": { "type": "object" } }
+      }
+    },
+    {
+      "description": "A human_override must name the human who took responsibility.",
+      "if": {
+        "properties": {
+          "policy_reference": {
+            "properties": { "allowed_by": { "const": "human_override" } },
+            "required": ["allowed_by"]
+          }
+        },
+        "required": ["policy_reference"]
+      },
+      "then": {
+        "properties": {
+          "approver": {
+            "type": "object",
+            "properties": { "approver_type": { "const": "human" } },
+            "required": ["approver_type"]
+          }
+        }
+      }
+    }
+  ]
+}

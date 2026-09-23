@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · SwarmOps</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%238b7cf6'/%3E%3Cg transform='translate(4 4)'%3E%3Ccircle cx='12.0' cy='12.0' r='3.45' fill='white'/%3E%3Ccircle cx='12.0' cy='3.55' r='2.15' fill='white'/%3E%3Ccircle cx='19.35' cy='16.1' r='1.8' fill='white' opacity='0.68'/%3E%3Ccircle cx='4.75' cy='16.1' r='1.4' fill='white' opacity='0.44'/%3E%3C/g%3E%3C/svg%3E">
+<script>try{var t=localStorage.getItem('swarmops-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<style>
+  .auth-wrap { min-height:100vh; display:grid; place-items:center; padding:24px; }
+  .auth-card { width:100%; max-width:390px; }
+  .auth-head { text-align:center; margin-bottom:22px; }
+  .auth-head .brand-mark { width:42px; height:42px; margin:0 auto 12px; border-radius:11px; }
+  .auth-head .brand-mark::after { inset:11px; }
+</style>
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-card rise">
+    <div class="auth-head">
+      <div class="brand-mark"></div>
+      <h1 style="font-size:19px">SwarmOps Audit Ledger</h1>
+      <div class="dim small mt-1">Sign in to review and approve agent actions</div>
+    </div>
+
+    {% if error %}
+      <div class="banner bad mb-2"><span>✕</span>
+        <span>That username and password combination was not recognised.</span></div>
+    {% endif %}
+
+    {% if auth_mode == 'dev' %}
+      <div class="banner warn mb-2"><span>⚠</span><span>
+        <strong>Development authentication.</strong> These identities come from a local file
+        and are not real. Any approval recorded here is attributed to a name nobody can
+        vouch for. Configure <span class="mono">SWARMOPS_AUTH_MODE=oidc</span> before
+        recording decisions that matter.</span></div>
+
+      <form class="card" method="post" action="/auth/login">
+        <div class="card-body">
+          <input type="hidden" name="next" value="{{ next }}">
+          <label class="field mb-1"><span>Username</span>
+            <input type="text" name="username" autocomplete="username" autofocus required></label>
+          <label class="field mb-2"><span>Password</span>
+            <input type="password" name="password" autocomplete="current-password" required></label>
+          <button class="btn btn-primary" type="submit" style="width:100%">Sign in</button>
+        </div>
+      </form>
+      <div class="dim small mt-2" style="text-align:center">
+        Credentials live in <span class="mono">dev_users.json</span>
+      </div>
+    {% else %}
+      <div class="card"><div class="card-body" style="text-align:center">
+        <p class="muted mt-0">You will be redirected to your organisation's identity provider.</p>
+        <a class="btn btn-primary" href="/auth/login?next={{ next }}" style="width:100%">Continue to sign in</a>
+      </div></div>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>

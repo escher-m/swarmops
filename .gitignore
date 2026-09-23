@@ -1,0 +1,30 @@
+# Local toolchain and data, all reproducible from scripts/
+.venv/
+.pg/
+.pgdata/
+.tools/
+__pycache__/
+*.pyc
+
+# The seeded service's own git repository is created by scripts/seed_repo.sh and
+# is intentionally a separate history; it must not become a submodule of this one.
+seedapp/repo/
+seedapp/logs/
+seedapp/state.json
+
+# Runtime artefacts
+*.log
+.env
+runs/
+exports/
+
+# Marketing site build output; regenerate with `make site`.
+site/dist/
+
+# Development identities for the dashboard. Never commit credentials, even fake ones —
+# the next person cannot tell which are fake.
+dev_users.json
+
+# React island build: node_modules is restored by `npm ci`, the bundle by `npm run build`.
+dashboard/ui/node_modules/
+dashboard/static/islands/

@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0.0",
+  "record_id": "1c7a2f3b-0d5e-4b82-9f46-3e8a0b2d5c71",
+  "incident_id": "INC-2026-0918-0042",
+  "in_response_to": "0b6f1e2a-9c4d-4a71-8e35-2d7f9a1c4b60",
+  "timestamp": "2026-09-18T14:25:02Z",
+  "actor": {
+    "agent_name": "holmesgpt-investigator",
+    "agent_version": "0.12.1",
+    "tool_or_platform": "holmesgpt",
+    "invocation_id": "holmes-run-7f3a91c4",
+    "model": "claude-sonnet-5"
+  },
+  "action_type": "propose_fix",
+  "summary": "Proposed rolling staging/checkout-api back from v1.4.2 to v1.4.1.",
+  "target": {
+    "resource_type": "k8s_deployment",
+    "resource_id": "staging/checkout-api",
+    "environment": "staging"
+  },
+  "policy_reference": {
+    "policy_id": "sre-agent-policy-v3",
+    "policy_description": "Autonomous agents may propose remediations but may never apply a write or production-affecting change without a recorded human approval. Proposals must state the exact command or diff to be applied.",
+    "allowed_by": "rule:propose_only_no_autoremediation"
+  },
+  "evidence": [
+    {
+      "evidence_type": "diff",
+      "source": "proposed manifest change for deployment staging/checkout-api",
+      "retrieved_at": "2026-09-18T14:25:00Z",
+      "snapshot_ref_or_inline": {
+        "kind": "inline",
+        "content_type": "text/x-diff",
+        "content": "--- deployment/checkout-api.yaml (current, v1.4.2)\n+++ deployment/checkout-api.yaml (proposed, v1.4.1)\n@@ -18,7 +18,7 @@ spec:\n     spec:\n       containers:\n       - name: checkout-api\n-        image: registry.internal/checkout-api:v1.4.2\n+        image: registry.internal/checkout-api:v1.4.1\n"
+      }
+    }
+  ],
+  "proposed_action": {
+    "description": "Roll the checkout-api deployment back to image tag v1.4.1, the last release before the nullable shipping_cost change. This restores service while the null-handling bug in handler.py is fixed properly. It does not alter data: carts written under v1.4.2 keep their null shipping_cost and will be handled by v1.4.1's non-null default on next write.",
+    "change_type": "rollback_deploy",
+    "command_or_diff": "kubectl set image deployment/checkout-api checkout-api=registry.internal/checkout-api:v1.4.1 -n staging",
+    "reversible": true,
+    "blast_radius": "single_service"
+  },
+  "approver": null,
+  "outcome": {
+    "status": "pending",
+    "details": "Proposal recorded. No change applied; awaiting human approval."
+  },
+  "prev_record_hash": "dd04e05388dcd1f87110250ca1a149de7a7f3b9e59a1bcc882372ded105549f3",
+  "record_hash": "b7f0136d9653d6551cd5fe87949e395a0fbe01883dddeef6c3d6222d7d5c8544"
+}

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% set nav = 'verify' %}
+{% block title %}Verification{% endblock %}
+{% block heading %}Chain verification{% endblock %}
+{% block subheading %}Every hash recomputed from stored content, every link followed, every blob re-hashed{% endblock %}
+
+{% block content %}
+{% set v = verification %}
+
+<div class="card rise mb-2" style="overflow:hidden">
+  <div id="chain-canvas-wrap" style="position:relative;height:210px;background:
+       radial-gradient(1200px 220px at 50% 120%, var(--accent-bg), transparent 70%)">
+    <canvas id="chain-canvas" style="display:block;width:100%;height:100%"></canvas>
+    <div style="position:absolute;inset:auto 0 12px 0;text-align:center;pointer-events:none">
+      <span class="dim small">each block is one record · the thread between them is prev_record_hash</span>
+    </div>
+  </div>
+  <div class="card-body" style="border-top:1px solid var(--border)">
+    <div class="flex flex-wrap" style="gap:18px">
+      <div>
+        <div class="stat-label">Verdict</div>
+        <div class="stat-value" style="color:{{ 'var(--ok)' if v.ok else 'var(--bad)' }}">
+          {% if v.ok %}✅ {{ v.verified_records }}/{{ v.total_records }} verified{% else %}❌ {{ v.findings|length }} problem(s){% endif %}
+        </div>
+        <div class="stat-context">
+          {% if v.ok %}no gaps detected{% else %}the ledger has been altered{% endif %}
+        </div>
+      </div>
+      <div><div class="stat-label">Records</div><div class="stat-value">{{ v.total_records }}</div>
+        <div class="stat-context">seq {{ v.seq_range[0] }}–{{ v.seq_range[1] }}</div></div>
+      <div><div class="stat-label">Evidence blobs</div><div class="stat-value">{{ v.evidence_artifacts_checked }}</div>
+        <div class="stat-context">re-hashed against their addresses</div></div>
+      <div style="min-width:0;flex:1 1 240px">
+        <div class="stat-label">Chain head</div>
+        {# A 64-character hash in a flex row wraps a single orphan character onto
+           the next line. Break it deliberately in the middle instead. #}
+        <div class="hash mt-1" style="font-size:11px;line-height:1.45">
+          {{ v.head_hash[:32] }}<br>{{ v.head_hash[32:] }}
+        </div>
+        <div class="stat-context">checked {{ v.checked_at | relative }}</div>
+      </div>
+      <div class="flex" style="align-self:center">
+        <a class="btn btn-primary no-print" href="/verify?force=true">Re-verify now</a>
+        <a class="btn no-print" href="/api/verify?force=true">JSON</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if not v.ok %}
+<div class="card mb-2" style="border-color:var(--bad-border)">
+  <div class="card-head"><span class="card-title" style="color:var(--bad)">Integrity findings</span></div>
+  <div class="card-body">
+    {% for f in v.findings %}
+    <div class="banner bad mb-1"><span>✕</span><span>
+      <strong>{{ f.kind }}</strong> at seq {{ f.seq }}
+      {% if f.record_id %}<a class="mono" href="/record/{{ f.record_id }}">{{ f.record_id | short(8) }}</a>{% endif %}
+      <div class="small mt-1">{{ f.detail }}</div></span></div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card mb-2">
+  <div class="card-head"><span class="card-title">What this check actually does</span>
+    <span class="card-sub">Five independent checks, each catching a different attack</span></div>
+  <div class="card-body">
+    <dl class="kv">
+      <dt>Hash integrity</dt><dd>Each record's stored hash is recomputed from its content. Catches edits to any field.</dd>
+      <dt>Chain linkage</dt><dd>Each record's <span class="mono">prev_record_hash</span> must equal its predecessor's hash. Catches deletion and reordering, which per-record hashing alone would miss.</dd>
+      <dt>Sequence density</dt><dd>Sequence numbers must be contiguous. A gap means a row was removed by someone who could also fix the links.</dd>
+      <dt>Schema validity</dt><dd>Every record must still satisfy the published schema.</dd>
+      <dt>Evidence integrity</dt><dd>Every referenced blob must exist and still hash to its address. Catches swapping the log excerpt that justified an action while leaving the record untouched.</dd>
+    </dl>
+    <div class="banner mt-2"><span>ℹ</span><span>
+      Run it yourself, without this dashboard:
+      <code>python scripts/verify_chain.py --json</code>. To see it catch a real tampering
+      attempt, run <code>python scripts/tamper_demo.py</code>.</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">Chain ({{ chain|length }} links)</span></div>
+  <div class="table-wrap" style="max-height:460px;overflow-y:auto">
+    <table>
+      <thead><tr><th>#</th><th>Action</th><th>Incident</th><th>prev_record_hash</th><th>record_hash</th><th>Link</th></tr></thead>
+      <tbody>
+      {% for c in chain %}
+        <tr>
+          <td class="mono dim td-tight">{{ c.seq }}</td>
+          <td class="td-tight">{{ m.action_chip(c.action_type) }}</td>
+          <td class="td-tight small mono"><a href="/incident/{{ c.incident_id }}">{{ c.incident_id }}</a></td>
+          <td class="hash td-tight">{{ c.prev_record_hash | short(20) }}…</td>
+          <td class="hash td-tight"><a href="/record/{{ c.record_id }}">{{ c.record_hash | short(20) }}…</a></td>
+          <td class="td-tight"><span class="chip ok">linked</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/three.min.js"></script>
+<script src="/static/chain.js"></script>
+{% endblock %}

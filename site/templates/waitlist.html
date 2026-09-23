@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Join the waitlist — SwarmOps{% endblock %}
+{% block description %}Join the SwarmOps waitlist for early access to the vendor-neutral audit ledger for AI agent actions, or apply to be a design partner.{% endblock %}
+
+{% block content %}
+<section class="section" style="position:relative;overflow:hidden">
+  {# The logo's orbit at scale. It lives here rather than on the homepage: this
+     is a single-column form page with nothing else competing for attention, so
+     the motion reads as warmth instead of noise. #}
+  <canvas id="hero-orbit" class="hero-orbit hero-orbit--framed" aria-hidden="true"
+          data-orbit-y="0.48" data-orbit-scale="0.52"></canvas>
+  <div class="wrap narrow" style="position:relative;z-index:1">
+    <div class="section-head center">
+      <div class="kicker">Early access</div>
+      <h2>Join the waitlist</h2>
+      <p>
+        We're looking for teams running agents that can touch production. Design partners get
+        the ledger free while we find out where the chain breaks on real incidents.
+      </p>
+    </div>
+
+    <div class="card">
+      {# FORM BACKEND NOT CONFIGURED.
+         This posts nowhere until you set an action. Options, all no-JS friendly:
+           Formspree  action="https://formspree.io/f/XXXXXXX"
+           Netlify    add  netlify  and  name="waitlist"  to the <form> tag
+           Your own   action="https://api.swarmops.dev/waitlist"
+         Whatever you choose, a waitlist collects personal data: say where it goes
+         and honour deletion requests. #}
+      <form method="POST" action="#REPLACE_WITH_YOUR_FORM_ENDPOINT" id="waitlist-form">
+        <div class="grid grid-2" style="gap:0 16px">
+          <label class="field"><span>Work email *</span>
+            <input type="email" name="email" required autocomplete="email"
+                   placeholder="you@company.com"></label>
+          <label class="field"><span>Company</span>
+            <input type="text" name="company" autocomplete="organization"
+                   placeholder="Acme Corp"></label>
+        </div>
+        <label class="field"><span>Which agents can touch your production systems?</span>
+          <input type="text" name="agents"
+                 placeholder="HolmesGPT, an in-house agent, Cleric, none yet…"></label>
+        <label class="field"><span>What audit or compliance pressure are you under?</span>
+          <select name="pressure">
+            <option value="">Select one…</option>
+            <option>SOC 2 audit coming up</option>
+            <option>EU AI Act high-risk obligations</option>
+            <option>Internal security review</option>
+            <option>Customer security questionnaire</option>
+            <option>None yet — planning ahead</option>
+          </select></label>
+        <label class="field"><span>Anything else?</span>
+          <textarea name="notes" placeholder="What would you need this to prove?"></textarea></label>
+        <label class="field" style="display:flex;gap:9px;align-items:flex-start;font-size:14px;color:var(--text-muted)">
+          <input type="checkbox" name="design_partner" value="yes" style="width:auto;margin-top:4px">
+          <span style="margin:0;text-transform:none;letter-spacing:0;font-weight:400;color:inherit">
+            I'm interested in being a design partner (hands-on, early, expect rough edges)
+          </span>
+        </label>
+        <button class="btn btn-lg btn-primary" type="submit" style="width:100%;margin-top:6px">
+          Join the waitlist
+        </button>
+      </form>
+      <p style="color:var(--text-dim);font-size:13px;margin:16px 0 0;text-align:center">
+        We'll only email you about SwarmOps. No list sharing, no newsletter you didn't ask for.
+      </p>
+    </div>
+
+    <div class="note warn" style="margin-top:22px">
+      <span>⚠</span>
+      <div><p><strong>Form backend not yet configured.</strong> This form's
+      <code>action</code> is a placeholder — submissions go nowhere. Set it to Formspree,
+      Netlify Forms, or your own endpoint before launch. See the comment in
+      <code>site/templates/waitlist.html</code>.</p></div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/assets/hero-orbit.js" defer></script>
+{% endblock %}

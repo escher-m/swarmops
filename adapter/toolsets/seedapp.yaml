@@ -1,0 +1,151 @@
+# Toolset giving HolmesGPT read-only access to the seeded checkout service.
+#
+# Every tool here is genuinely read-only. That is not a convention -- it is what
+# lets rule:read_only_investigation in the policy be true, and it is why an
+# investigation needs no approval. The remediation surface (/admin/apply_fix)
+# is deliberately absent from this toolset: the agent cannot reach it even if
+# it decides it wants to, so "the agent cannot auto-remediate" is a property of
+# what it was handed, not a promise about its behaviour.
+#
+# $SWARMOPS_ROOT and $SEEDAPP_BASE are exported by adapter/holmes_adapter.py.
+
+toolsets:
+  seedapp_investigation:
+    description: >-
+      Read-only diagnostics for the checkout-api service: application logs,
+      Prometheus metrics, HTTP probes, deployment state, source history and
+      database query plans.
+    tags:
+      - core
+    prerequisites:
+      - command: "test -f $SWARMOPS_ROOT/seedapp/logs/checkout-api.log"
+
+    tools:
+      - name: checkout_service_logs
+        description: >-
+          Return the most recent application log lines for checkout-api,
+          optionally filtered. Use this first when diagnosing errors; it
+          contains tracebacks, slow-request warnings and deploy events.
+        parameters:
+          lines:
+            type: string
+            description: "How many recent lines to return (default 200)."
+            required: false
+          pattern:
+            type: string
+            description: >-
+              Optional extended regex to filter lines, e.g. "ERROR|Traceback".
+              Omit to see everything.
+            required: false
+        command: >-
+          tail -n ${lines:-200} "$SWARMOPS_ROOT/seedapp/logs/checkout-api.log"
+          | { if [ -n "${pattern:-}" ]; then grep -E "${pattern}" || echo "(no lines matched ${pattern})"; else cat; fi; }
+
+      - name: checkout_service_health
+        description: >-
+          Probe the service health endpoint. Returns the deployed version and
+          whether the database is reachable.
+        command: >-
+          curl -sS -m 10 -w "\nHTTP_STATUS=%{http_code}\n" "$SEEDAPP_BASE/health"
+
+      - name: probe_checkout_endpoint
+        description: >-
+          Send a real POST /checkout request and return the status and body.
+          Use this to confirm whether the reported failure actually reproduces,
+          and again after a change to confirm recovery.
+        parameters:
+          digital_only:
+            type: string
+            description: "'true' for a digital-goods cart (no shipping), 'false' otherwise. Default 'true'."
+            required: false
+        command: >-
+          curl -sS -m 15 -X POST "$SEEDAPP_BASE/checkout"
+          -H 'content-type: application/json'
+          -d "{\"digital_only\": ${digital_only:-true}}"
+          -w "\nHTTP_STATUS=%{http_code}\nTIME_TOTAL=%{time_total}s\n"
+
+      - name: probe_orders_endpoint
+        description: >-
+          Send a real GET /orders request. Returns status and latency; use it to
+          detect database connection pool problems.
+        command: >-
+          curl -sS -m 20 "$SEEDAPP_BASE/orders"
+          -w "\nHTTP_STATUS=%{http_code}\nTIME_TOTAL=%{time_total}s\n" | head -c 2000
+
+      - name: probe_revenue_report
+        description: >-
+          Send a real GET /reports/revenue request. The response includes
+          query_seconds, which is the authoritative latency measurement for
+          diagnosing slow queries.
+        command: >-
+          curl -sS -m 120 "$SEEDAPP_BASE/reports/revenue"
+          -w "\nHTTP_STATUS=%{http_code}\nTIME_TOTAL=%{time_total}s\n"
+
+      - name: checkout_service_metrics
+        description: >-
+          Prometheus metrics for checkout-api: request counts by endpoint and
+          status, latency percentiles, and the overall 5xx error ratio.
+        command: >-
+          curl -sS -m 10 "$SEEDAPP_BASE/metrics"
+
+      - name: checkout_deployment_state
+        description: >-
+          The service's current deployment configuration: deployed version,
+          database pool size, whether the revenue index exists, and the active
+          credential identifier.
+        command: >-
+          curl -sS -m 10 "$SEEDAPP_BASE/admin/state"
+
+      - name: git_recent_commits
+        description: >-
+          Recent commits in the checkout-api source repository, newest first,
+          with tags. Use this to correlate a failure with a recent change.
+        parameters:
+          count:
+            type: string
+            description: "How many commits to show (default 10)."
+            required: false
+        command: >-
+          git -C "$SWARMOPS_ROOT/seedapp/repo" log -n ${count:-10}
+          --date=iso --pretty=format:'%h %d %ad %an%n    %s%n'
+
+      - name: git_show_commit
+        description: >-
+          Show the full patch for one commit. Use after git_recent_commits to
+          inspect a change you suspect.
+        parameters:
+          ref:
+            type: string
+            description: "Commit sha, tag or ref, e.g. 'v1.4.2' or '4f2c9a1'."
+            required: true
+        command: >-
+          git -C "$SWARMOPS_ROOT/seedapp/repo" show --patch --stat "${ref}" | head -c 8000
+
+      - name: git_scan_for_secrets
+        description: >-
+          Search the repository history for hardcoded credentials (AWS-style
+          access keys and secret keys). Returns the commits and file locations
+          where such values were introduced.
+        command: >-
+          cd "$SWARMOPS_ROOT/seedapp/repo" &&
+          { git grep -nE '(AKIA[0-9A-Z]{16}|aws_secret_access_key\s*=\s*["'"'"'][^"'"'"']{20,})' $(git rev-list --all) -- 2>/dev/null | head -40 || true; }
+          && echo "--- introducing commits ---"
+          && { git log --oneline -S 'AKIA' --all | head -10 || echo "(none found)"; }
+
+      - name: database_query_plan
+        description: >-
+          Run EXPLAIN ANALYZE on the revenue lookup query against the seeded
+          database. Shows whether an index is used or the planner falls back to
+          a sequential scan.
+        command: >-
+          "$SWARMOPS_ROOT/.pg/bin/psql" -h "$SWARMOPS_ROOT/.pgdata/sockets" -p 5433
+          -U postgres -d seedapp -X -c
+          "EXPLAIN ANALYZE SELECT COALESCE(sum(total),0) FROM orders_archive WHERE lower(customer_email) = lower('Customer17@Example.com');"
+
+      - name: database_indexes
+        description: >-
+          List indexes on the seeded database tables. Use to confirm whether an
+          index a query needs is present.
+        command: >-
+          "$SWARMOPS_ROOT/.pg/bin/psql" -h "$SWARMOPS_ROOT/.pgdata/sockets" -p 5433
+          -U postgres -d seedapp -X -c "\di+"

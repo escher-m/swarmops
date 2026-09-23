@@ -1,0 +1,35 @@
+/* Tailwind for the React islands only.
+ *
+ * Preflight is deliberately NOT imported. Preflight is a global reset, and the
+ * dashboard is a server-rendered app with its own 500-line stylesheet; pulling
+ * it in would restyle every existing page from underneath.
+ */
+@import "tailwindcss/theme.css";
+@import "tailwindcss/utilities.css";
+
+/* The cost of skipping preflight: form controls keep their user-agent styling.
+ * That showed up immediately as light grey `buttonface` backgrounds behind the
+ * command palette's unselected rows, because only the selected row sets a
+ * background of its own. This is the minimum reset to undo that, scoped to
+ * island mount points so it cannot leak into the server-rendered pages. */
+[data-island] button,
+[data-island] input,
+[data-island] kbd {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: transparent;
+  font: inherit;
+  color: inherit;
+  border: 0;
+}
+
+[data-island] button { cursor: pointer; text-align: inherit; }
+[data-island] input::placeholder { color: var(--text-dim); }
+
+/* Scrollbar inside the palette, which the component asks for by class name. */
+[data-island] .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+[data-island] .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+[data-island] .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}

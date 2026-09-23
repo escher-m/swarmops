@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% set nav = 'incidents' %}
+{% block title %}{{ incident_id }}{% endblock %}
+{% block heading %}{{ incident_id }}{% endblock %}
+{% block subheading %}{{ summary.resource }} · {{ summary.environment }} · {{ summary.started | fmt_time }}{% endblock %}
+
+{% block content %}
+
+{# The acceptance test for this product is that a compliance lead can answer six
+   questions from this page without anyone narrating it. This card answers them
+   in order, in plain language, before any structured detail. #}
+<div class="card rise mb-2">
+  <div class="card-head">
+    <span class="card-title">What happened</span>
+    <span class="spacer"></span>
+    {% set st = summary.status %}
+    <span class="chip {{ {'executed':'ok','execution_failed':'bad','rejected':'bad',
+                          'awaiting_approval':'warn','investigated':'info'}[st] }}">
+      {{ st.replace('_',' ') }}
+    </span>
+    <a class="btn btn-sm btn-primary no-print" href="/export.pdf?incident_id={{ incident_id }}">Audit report (PDF)</a>
+  </div>
+  <div class="card-body">
+    <dl class="kv">
+      <dt>What broke</dt>
+      <dd>
+        {% if summary.conclusion %}
+          {{ summary.conclusion.outcome.details.split('\n')[0] }}
+        {% else %}
+          <span class="dim">No conclusion was recorded for this incident.</span>
+        {% endif %}
+      </dd>
+
+      <dt>What the agent looked at</dt>
+      <dd>
+        {{ summary.evidence_total }} evidence artifact{{ '' if summary.evidence_total == 1 else 's' }}
+        gathered across {{ summary.steps }} diagnostic step{{ '' if summary.steps == 1 else 's' }}
+        — every command and its output is recorded below and can be re-read in full.
+      </dd>
+
+      <dt>What it proposed</dt>
+      <dd>
+        {% if summary.proposal %}
+          {{ summary.proposal.proposed_action.description }}
+          <div class="mt-1">
+            <span class="chip">{{ summary.proposal.proposed_action.change_type }}</span>
+            <span class="chip {{ 'ok' if summary.proposal.proposed_action.reversible else 'bad' }}">
+              {{ 'reversible' if summary.proposal.proposed_action.reversible else 'IRREVERSIBLE' }}
+            </span>
+            <span class="chip">blast radius: {{ summary.proposal.proposed_action.blast_radius }}</span>
+          </div>
+        {% else %}<span class="dim">No remediation was proposed.</span>{% endif %}
+      </dd>
+
+      <dt>Who approved it</dt>
+      <dd>
+        {% set decision = summary.approval or summary.rejection %}
+        {% if decision %}
+          <strong>{{ decision.approver.approver_id }}</strong>
+          {% if decision.approver.approver_display_name %}
+            ({{ decision.approver.approver_display_name }}){% endif %}
+          {{ 'approved' if summary.approval else 'rejected' }} it on
+          {{ decision.approver.approved_at | fmt_time }}
+          via {{ decision.approver.approval_channel }}.
+          {% if decision.approver.approval_channel == 'trial_harness_unattended' %}
+            <div class="banner warn mt-1">
+              <span>⚠</span>
+              <span>This approval was made by an automated trial harness under standing
+              pre-authorisation. It was <strong>not</strong> a per-incident human review.</span>
+            </div>
+          {% endif %}
+          {% if decision.approver.decision_note %}
+            <div class="mt-1 muted small">“{{ decision.approver.decision_note }}”</div>
+          {% endif %}
+        {% else %}
+          <span class="dim">Nobody yet — no change has been applied.</span>
+        {% endif %}
+      </dd>
+
+      <dt>When it executed</dt>
+      <dd>
+        {% if summary.execution %}
+          {{ summary.execution.timestamp | fmt_time }}
+          <span class="dim">({{ summary.execution.outcome.get('duration_ms') | duration }})</span>
+        {% else %}<span class="dim">Never executed.</span>{% endif %}
+      </dd>
+
+      <dt>Did it work</dt>
+      <dd>
+        {% if summary.execution %}
+          {% if summary.execution.outcome.status == 'success' %}
+            <span class="chip ok">Yes — verified by a probe after the change</span>
+          {% else %}
+            <span class="chip bad">No — see the execution record below</span>
+          {% endif %}
+          <div class="mt-1 muted small">{{ summary.execution.outcome.details.split('\n')[2] if summary.execution.outcome.details.split('\n')|length > 2 else '' }}</div>
+        {% else %}<span class="dim">Not applicable.</span>{% endif %}
+      </dd>
+    </dl>
+  </div>
+</div>
+
+<div class="section-title">Full chain — {{ records|length }} records, in ledger order</div>
+
+<div class="timeline">
+  {% for r in records %}
+  <div class="tl-item rise" data-kind="{{ r.action_type }}" style="animation-delay:{{ loop.index0 * 0.035 }}s">
+    <div class="tl-dot"></div>
+    <div class="card">
+      <div class="card-head">
+        {{ m.action_chip(r.action_type) }}
+        <span class="card-title" style="font-weight:550">{{ r.summary }}</span>
+        <span class="spacer"></span>
+        {{ m.outcome_chip(r.outcome.status) }}
+        <span class="dim small mono nowrap">{{ r.timestamp | fmt_time('%H:%M:%S') }}</span>
+        <a class="btn btn-sm no-print" href="/record/{{ r.record_id }}">Record →</a>
+      </div>
+      <div class="card-body">
+        <dl class="kv">
+          <dt>Actor</dt>
+          <dd>{{ r.actor.agent_name }} <span class="dim">v{{ r.actor.agent_version }}</span>
+              {% if r.actor.model %}<span class="chip">{{ r.actor.model }}</span>{% endif %}</dd>
+          <dt>Authorised by</dt>
+          <dd><span class="mono">{{ r.policy_reference.allowed_by }}</span>
+              <div class="small muted mt-1">{{ r.policy_reference.policy_description }}</div></dd>
+          {% if r.proposed_action %}
+          <dt>Command</dt>
+          <dd><pre style="margin:0;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:11.5px;overflow-x:auto;white-space:pre-wrap">{{ r.proposed_action.command_or_diff }}</pre></dd>
+          {% endif %}
+          {% if r.approver %}
+          <dt>Approver</dt>
+          <dd>{{ r.approver.approver_id }} <span class="chip {{ 'warn' if r.approver.approver_type != 'human' else 'ok' }}">{{ r.approver.approver_type }}</span>
+              <span class="dim small">via {{ r.approver.approval_channel }}</span></dd>
+          {% endif %}
+          <dt>Outcome</dt>
+          <dd><span class="muted" style="white-space:pre-wrap">{{ r.outcome.details }}</span></dd>
+        </dl>
+
+        {% if r.evidence %}
+          <div class="section-title" style="margin:16px 0 6px">
+            Evidence ({{ r.evidence|length }})
+          </div>
+          {% for item in r.evidence %}{{ m.evidence_block(item, loop.index) }}{% endfor %}
+        {% endif %}
+
+        <div class="flex flex-wrap small dim mt-2" style="gap:14px">
+          <span>seq {{ r.seq }}</span>
+          <span class="hash" title="This record's hash">hash {{ r.record_hash | short(16) }}…</span>
+          <span class="hash" title="Hash of the previous record — this is the chain link">prev {{ r.prev_record_hash | short(16) }}…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

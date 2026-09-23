@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Resources — engineering notes on AI agent audit trails{% endblock %}
+{% block description %}Engineering notes from building a tamper-evident audit ledger for AI agent actions: hash chains, Postgres append-only enforcement, policy design, canonical JSON.{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Resources</div>
+      <h2>Engineering notes</h2>
+      <p>
+        Things we got wrong building this, written up while the details were fresh. No
+        thought leadership, no funnel.
+      </p>
+    </div>
+
+    <div class="grid grid-3">
+      {% for post in posts %}
+      <article class="card card-hover reveal">
+        <div class="post-meta" style="margin-bottom:10px">
+          <time datetime="{{ post.published }}">{{ post.published }}</time>
+          <span>·</span>
+          <span>{{ post.reading_minutes }} min read</span>
+        </div>
+        <h3><a href="{{ post.url }}" style="color:var(--text)">{{ post.title }}</a></h3>
+        <p style="color:var(--text-muted);font-size:14.5px;margin-top:10px">{{ post.description }}</p>
+        <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap">
+          {% for tag in post.tags %}<span class="badge">{{ tag }}</span>{% endfor %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section" style="background:var(--bg-raised);border-block:1px solid var(--border)">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Reference material</h2>
+      <p>What we read while building, and what we'd point you at.</p>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Standards and regulation</h3>
+        <ul style="color:var(--text-muted);font-size:14.5px;line-height:1.85;padding-left:20px;margin:10px 0 0">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8785">RFC 8785</a> — JSON Canonicalization Scheme</li>
+          <li><a href="https://artificialintelligenceact.eu/">EU AI Act</a> — high-risk obligations, in force since 2 August 2026</li>
+          <li><a href="https://www.nist.gov/itl/ai-risk-management-framework">NIST AI Risk Management Framework</a></li>
+          <li><a href="https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2">SOC 2</a> — trust services criteria</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Adjacent projects</h3>
+        <ul style="color:var(--text-muted);font-size:14.5px;line-height:1.85;padding-left:20px;margin:10px 0 0">
+          <li><a href="https://github.com/robusta-dev/holmesgpt">HolmesGPT</a> — the agent our first adapter wraps; CNCF Sandbox since October 2025</li>
+          <li><a href="https://github.com/systempromptio/awesome-ai-agent-governance">awesome-ai-agent-governance</a> — curated list of tools and standards in this space</li>
+          <li><a href="https://microsoft.github.io/agent-governance-toolkit/tutorials/04-audit-and-compliance/">Microsoft Agent Governance Toolkit</a> — audit and compliance patterns</li>
+          <li><a href="https://langfuse.com/docs/observability/overview">Langfuse</a> — open-source LLM observability, for the adjacent problem</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

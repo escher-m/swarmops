@@ -1,0 +1,40 @@
+{# Shared fragments. Kept in one place so a record looks the same everywhere. #}
+
+{% macro action_chip(action_type) -%}
+  {%- set cls = {'investigate':'info','propose_fix':'accent','request_approval':'warn',
+                 'approve':'ok','reject':'bad','execute':'ok','rollback':'warn'}.get(action_type,'') -%}
+  <span class="chip {{ cls }}"><span class="chip-dot"></span>{{ action_type.replace('_',' ') }}</span>
+{%- endmacro %}
+
+{% macro outcome_chip(status) -%}
+  {%- set cls = {'success':'ok','failure':'bad','pending':'warn'}.get(status,'') -%}
+  <span class="chip {{ cls }}">{{ status }}</span>
+{%- endmacro %}
+
+{% macro env_chip(env) -%}
+  <span class="chip {{ 'bad' if env == 'prod' else 'info' if env == 'staging' else '' }}">{{ env }}</span>
+{%- endmacro %}
+
+{% macro evidence_block(item, loop_index) -%}
+  {% set ref = item.snapshot_ref_or_inline %}
+  <details class="evidence">
+    <summary>
+      <span class="chip">{{ item.evidence_type.replace('_',' ') }}</span>
+      <span class="evidence-src">{{ item.source }}</span>
+      {% if item.redacted %}<span class="chip warn" title="Secrets were masked before storage">redacted</span>{% endif %}
+      {% if ref.kind == 'blob' %}
+        <span class="chip" title="Content-addressed blob">{{ (ref.size_bytes / 1024) | round(1) }} KB</span>
+      {% endif %}
+    </summary>
+    <pre>{{ item | evidence_text }}</pre>
+    <div style="padding:8px 12px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <span class="dim small">retrieved {{ item.retrieved_at | fmt_time }}</span>
+      {% if ref.kind == 'blob' %}
+        <span class="hash" title="sha256 of the stored bytes; also its filename">{{ ref.sha256 }}</span>
+        <a class="btn btn-sm" href="/evidence/{{ ref.sha256.replace('sha256:','') }}?download=true">Download</a>
+      {% else %}
+        <span class="dim small">stored inline — integrity covered by this record's hash</span>
+      {% endif %}
+    </div>
+  </details>
+{%- endmacro %}

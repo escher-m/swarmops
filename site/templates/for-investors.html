@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}For investors — SwarmOps, the audit layer for agentic AI{% endblock %}
+{% block description %}The technical thesis behind SwarmOps: why the audit record for AI agent actions becomes infrastructure, what is built and verifiable today, and where the wedge is.{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="wrap narrow">
+    <div class="section-head">
+      <div class="kicker">For investors</div>
+      <h2>Why the audit record becomes infrastructure</h2>
+      <p>
+        Early-stage and technical. The bet we are making, the wedge we are making it
+        through, and the parts that are already built and independently checkable.
+      </p>
+    </div>
+
+    <h2 style="font-size:26px">The thesis</h2>
+    <p style="color:var(--text-muted)">
+      Agents are moving from answering questions to taking actions. The moment an agent can
+      restart a workload, roll back a deploy or rotate a credential, someone becomes
+      accountable for that action — and today there is no durable, vendor-neutral record of who.
+    </p>
+    <p style="color:var(--text-muted)">
+      Three forces converge on this. Agents are acquiring write access; the EU AI Act's
+      high-risk obligations reached full enforcement on 2 August 2026, and SOC 2 and the NIST
+      AI RMF increasingly demand attribution at operation level; and enterprises are already
+      running more than one agent vendor, which makes a per-vendor trail structurally unable to
+      answer "what did our agents do last quarter".
+    </p>
+    <p style="color:var(--text-muted)">
+      The bet is that the <em>record</em> becomes the durable layer, the way the audit log
+      outlived every application that wrote to it. Agent frameworks will churn. What the
+      auditor reads should not.
+    </p>
+
+    <h2 style="font-size:26px">The wedge</h2>
+    <p style="color:var(--text-muted)">
+      Not "AI governance platform" — too broad, too slow, sold to a committee. The wedge is
+      narrow and technical: <strong>one instrumented agent, one incident type, one auditor-ready
+      artifact.</strong> A platform team adopts it because their agent just got write access
+      and their compliance lead asked a question they could not answer. It spreads because the
+      second agent vendor produces records in the same shape as the first.
+    </p>
+
+    <h2 style="font-size:26px">What is built and verifiable today</h2>
+    <p style="color:var(--text-muted)">
+      Everything below is in the repository and checkable by running a command — not a
+      roadmap slide.
+    </p>
+
+    <div class="grid grid-2" style="margin:22px 0">
+      <div class="card">
+        <h3>The record schema</h3>
+        <p>JSON Schema with conditional rules that make silent auto-remediation structurally
+        unrecordable: an execute record is invalid without an approver and a pointer to the
+        approval that authorised it.</p>
+      </div>
+      <div class="card">
+        <h3>Append-only, provably</h3>
+        <p>Database grants plus statement-level triggers. Ten mutation attempts refused,
+        including as the table owner, in a script a prospect can run themselves.</p>
+      </div>
+      <div class="card">
+        <h3>Tamper detection</h3>
+        <p>Three attack classes — edit a record, delete an approval, swap an evidence blob —
+        staged by a demo that plays the attacker with superuser access. All three caught.</p>
+      </div>
+      <div class="card">
+        <h3>The full loop</h3>
+        <p>Fault injected into a reference service, investigated, proposed, blocked at the gate,
+        approved by an authenticated human, executed, recovery verified by probe, chain intact.</p>
+      </div>
+    </div>
+
+    <div class="terminal" style="margin-bottom:26px">
+      <div class="terminal-bar">
+        <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+        <span class="terminal-title">the demo we give a technical diligence call</span>
+      </div>
+<pre><span class="t-dim">$</span> bash scripts/prove_append_only.sh
+  <span class="t-ok">10 passed, 0 failed</span>   <span class="t-dim">— every mutation refused by the database</span>
+
+<span class="t-dim">$</span> python scripts/tamper_demo.py
+  <span class="t-ok">detected</span>  edit_record       <span class="t-dim">— outcome flipped to success</span>
+  <span class="t-ok">detected</span>  delete_record     <span class="t-dim">— approval removed</span>
+  <span class="t-ok">detected</span>  swap_evidence     <span class="t-dim">— log excerpt rewritten</span>
+  <span class="t-ok">clean</span>     ledger restored
+
+<span class="t-dim">$</span> python scripts/verify_chain.py
+  <span class="t-ok">✅ all records verified, no gaps detected</span></pre>
+    </div>
+
+    <h2 style="font-size:26px">Risks we would raise ourselves</h2>
+    <ul style="color:var(--text-muted);line-height:1.8">
+      <li><strong>Agent platforms absorb this.</strong> The most likely outcome. Each has an
+        incentive to own its own trail. Our answer is that a per-vendor trail cannot solve a
+        multi-vendor question — which only holds while enterprises run more than one.</li>
+      <li><strong>Compliance demand may lag capability.</strong> Agents get write access before
+        anyone is asked to prove what they did. If the first audit question lands in 2028 rather
+        than 2026, the wedge is early.</li>
+      <li><strong>GRC incumbents extend downward.</strong> Vanta and Drata already own the
+        auditor relationship. Adding agent-action evidence is a smaller leap for them than
+        building distribution is for us.</li>
+      <li><strong>It may be a feature.</strong> If the record is easy enough to bolt on, it is a
+        library, not a company. The counter-argument is the evidence store and the policy
+        pinning — the parts that are tedious rather than clever.</li>
+    </ul>
+
+    <div style="margin-top:34px">
+      <a class="btn btn-lg btn-primary" href="mailto:hello@swarmops.dev">Get in touch</a>
+      <a class="btn btn-lg btn-ghost" href="/how-it-works/">Read the technical detail</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

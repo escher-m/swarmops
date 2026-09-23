@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0.0",
+  "record_id": "3e9c4b5d-2f70-4da4-b168-509c2d4f7e93",
+  "incident_id": "INC-2026-0918-0042",
+  "in_response_to": "2d8b3a4c-1e6f-4c93-a057-4f9b1c3e6d82",
+  "timestamp": "2026-09-18T14:31:07Z",
+  "actor": {
+    "agent_name": "swarmops-approval-gate",
+    "agent_version": "0.1.0",
+    "tool_or_platform": "holmesgpt",
+    "invocation_id": "holmes-run-7f3a91c4",
+    "model": "claude-sonnet-5"
+  },
+  "action_type": "approve",
+  "summary": "On-call SRE approved the v1.4.1 rollback of staging/checkout-api.",
+  "target": {
+    "resource_type": "k8s_deployment",
+    "resource_id": "staging/checkout-api",
+    "environment": "staging"
+  },
+  "policy_reference": {
+    "policy_id": "sre-agent-policy-v3",
+    "policy_description": "A reversible rollback of a non-production deployment may be executed by the agent once a human with the sre-oncall role has approved the specific proposed change.",
+    "allowed_by": "rule:human_approved_reversible_rollback"
+  },
+  "evidence": [],
+  "approver": {
+    "approver_id": "okta|00u4k2x9zQpLmNb7h",
+    "approver_type": "human",
+    "approved_at": "2026-09-18T14:31:07Z",
+    "approval_channel": "cli",
+    "approver_display_name": "on-call SRE (sre-oncall rota)",
+    "decision_note": "Traceback and the v1.4.2 diff agree on the cause. Rollback is reversible and staging only. Approved. Follow-up ticket filed for the null-handling fix."
+  },
+  "outcome": {
+    "status": "success",
+    "details": "Approved after 6m03s. Execution authorized for this proposal only.",
+    "duration_ms": 363000
+  },
+  "prev_record_hash": "875efc770e8dca0648f267cccb7c3f4a21d4b90b466a557ddbbe186b2bc5dd72",
+  "record_hash": "72116f6f6f784001b79b233cb2998882479b08198f588b46dfe972987c7f87ee"
+}

@@ -1,0 +1,457 @@
+/* SwarmOps audit ledger — design system.
+ *
+ * A compliance console is read under pressure by people who did not build it,
+ * so the visual work is spent on hierarchy and legibility rather than
+ * decoration: one accent colour reserved for the trust signal, semantic colours
+ * that never appear as ornament, and a monospace treatment for every hash so
+ * that identity is visually distinct from prose.
+ */
+
+@import url('/static/fonts.css');
+
+:root {
+  /* Bound to our own theme, not the OS. `color-scheme: dark light` means "I
+   * support both, browser pick" -- so native widget chrome (date-picker icons,
+   * select popups, scrollbars, autofill) followed the operating system while
+   * the rest of the page followed data-theme. On a light-mode OS that rendered
+   * a black calendar glyph inside a dark input. Each theme now declares
+   * exactly one scheme. */
+  color-scheme: dark;
+
+  /* Neutrals — a cool slate ramp, dark end first. */
+  --bg:            #0a0c10;
+  --bg-raised:     #10131a;
+  --bg-overlay:    #161a23;
+  --bg-input:      #0d1016;
+  --border:        #1e2430;
+  --border-strong: #2b3444;
+
+  --text:          #e6e9ef;
+  --text-muted:    #9aa4b5;
+  --text-dim:      #626c7d;
+
+  /* Semantic — used only to mean their meaning. */
+  --ok:        #3ddc97;
+  --ok-bg:     rgba(61, 220, 151, 0.10);
+  --ok-border: rgba(61, 220, 151, 0.28);
+
+  --warn:        #ffc857;
+  --warn-bg:     rgba(255, 200, 87, 0.10);
+  --warn-border: rgba(255, 200, 87, 0.28);
+
+  --bad:        #ff6b6b;
+  --bad-bg:     rgba(255, 107, 107, 0.10);
+  --bad-border: rgba(255, 107, 107, 0.28);
+
+  --info:        #6ea8fe;
+  --info-bg:     rgba(110, 168, 254, 0.10);
+  --info-border: rgba(110, 168, 254, 0.28);
+
+  --accent:      #8b7cf6;
+  --accent-bg:   rgba(139, 124, 246, 0.12);
+  --accent-glow: rgba(139, 124, 246, 0.35);
+
+  --radius:    10px;
+  --radius-sm: 6px;
+  --radius-lg: 16px;
+
+  --shadow:    0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.28);
+  --shadow-lg: 0 2px 8px rgba(0,0,0,.4), 0 24px 60px rgba(0,0,0,.45);
+
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --sidebar-w: 236px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg:            #f7f8fa;
+  --bg-raised:     #ffffff;
+  --bg-overlay:    #ffffff;
+  --bg-input:      #ffffff;
+  --border:        #e3e6ec;
+  --border-strong: #cdd3dd;
+
+  --text:       #14171f;
+  --text-muted: #5a6474;
+  --text-dim:   #8a94a4;
+
+  --ok:   #0f9d58;  --ok-bg:   rgba(15,157,88,.08);   --ok-border:   rgba(15,157,88,.25);
+  --warn: #b7791f;  --warn-bg: rgba(183,121,31,.08);  --warn-border: rgba(183,121,31,.25);
+  --bad:  #d93025;  --bad-bg:  rgba(217,48,37,.07);   --bad-border:  rgba(217,48,37,.24);
+  --info: #1a73e8;  --info-bg: rgba(26,115,232,.07);  --info-border: rgba(26,115,232,.24);
+  --accent: #6d4aff; --accent-bg: rgba(109,74,255,.08); --accent-glow: rgba(109,74,255,.2);
+
+  --shadow:    0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.07);
+  --shadow-lg: 0 2px 8px rgba(16,24,40,.07), 0 20px 48px rgba(16,24,40,.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: inherit; text-decoration: none; }
+a:hover { color: var(--accent); }
+
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.015em; }
+h1 { font-size: 22px; }
+h2 { font-size: 16px; }
+h3 { font-size: 13px; }
+
+code, .mono, .hash { font-family: var(--mono); font-size: 12px; font-variant-ligatures: none; }
+
+.hash {
+  color: var(--text-dim);
+  letter-spacing: .01em;
+  word-break: break-all;
+}
+
+/* ------------------------------------------------------------------ layout */
+
+.shell { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);
+  border-right: 1px solid var(--border);
+  background: var(--bg-raised);
+  padding: 18px 12px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 8px 16px;
+}
+.brand-mark {
+  width: 28px; height: 28px; flex: 0 0 28px;
+  border-radius: 8px; position: relative;
+  /* Three agents orbiting one sealed record. Generated from
+   * scripts/logo_mark.py, so the mark, the favicons and the social card are
+   * always the same shape. A background SVG rather than pseudo-elements so it
+   * scales with the element -- the 42px sign-in variant needs no extra rule. */
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12.0' cy='12.0' r='3.45' fill='white'/%3E%3Ccircle cx='12.0' cy='3.55' r='2.15' fill='white'/%3E%3Ccircle cx='19.35' cy='16.1' r='1.8' fill='white' opacity='0.68'/%3E%3Ccircle cx='4.75' cy='16.1' r='1.4' fill='white' opacity='0.44'/%3E%3C/svg%3E") center / 64% no-repeat,
+              linear-gradient(140deg, var(--accent), var(--info));
+  box-shadow: 0 0 0 1px var(--border-strong), 0 4px 14px var(--accent-glow);
+}
+.brand-name { font-weight: 650; letter-spacing: -.02em; font-size: 14px; }
+.brand-out {
+  flex: 0 0 auto; padding: 5px; border-radius: 5px; color: var(--text-dim);
+  transition: color .14s var(--ease), background .14s var(--ease);
+}
+.brand-out:hover { color: var(--text); background: var(--bg-overlay); }
+.brand-sub { font-size: 11px; color: var(--text-dim); margin-top: -3px; }
+
+.nav-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .09em;
+  color: var(--text-dim); padding: 14px 10px 6px; font-weight: 600;
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 10px; border-radius: var(--radius-sm);
+  color: var(--text-muted); font-weight: 500; font-size: 13px;
+  transition: background .14s var(--ease), color .14s var(--ease);
+}
+.nav-item:hover { background: var(--bg-overlay); color: var(--text); }
+.nav-item.active { background: var(--accent-bg); color: var(--text); }
+.nav-item.active .nav-icon { color: var(--accent); }
+.nav-icon { width: 15px; height: 15px; flex: 0 0 15px; color: var(--text-dim); }
+.nav-count {
+  margin-left: auto; font-size: 11px; font-weight: 600;
+  background: var(--bg-overlay); color: var(--text-muted);
+  padding: 1px 6px; border-radius: 20px; min-width: 20px; text-align: center;
+}
+.nav-count.alert { background: var(--warn-bg); color: var(--warn); }
+
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.topbar {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 24px; border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: saturate(140%) blur(10px);
+  position: sticky; top: 0; z-index: 20;
+}
+.topbar-title { font-weight: 600; font-size: 15px; letter-spacing: -.015em; }
+.topbar-sub { color: var(--text-dim); font-size: 12px; }
+.spacer { flex: 1; }
+
+.content { padding: 22px 24px 60px; max-width: 1400px; width: 100%; }
+
+/* ------------------------------------------------------------- trust badge */
+
+.trust {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 20px; font-size: 12px; font-weight: 550;
+  border: 1px solid var(--ok-border); background: var(--ok-bg); color: var(--ok);
+  transition: transform .16s var(--ease);
+}
+.trust.bad { border-color: var(--bad-border); background: var(--bad-bg); color: var(--bad); }
+.trust:hover { transform: translateY(-1px); }
+.trust-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent);
+  animation: pulse 2.6s var(--ease) infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .45; }
+}
+
+/* ------------------------------------------------------------------ cards */
+
+.card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.card-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 16px; border-bottom: 1px solid var(--border);
+}
+.card-body { padding: 16px; }
+.card-title { font-size: 13px; font-weight: 600; }
+.card-sub { font-size: 12px; color: var(--text-dim); }
+
+.grid { display: grid; gap: 14px; }
+.grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* Stat tiles: one number each, label above, context below. */
+.stat { padding: 14px 16px; }
+.stat-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--text-dim); font-weight: 600;
+}
+.stat-value {
+  font-size: 26px; font-weight: 650; letter-spacing: -.03em;
+  margin-top: 4px; font-variant-numeric: tabular-nums;
+}
+.stat-context { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* ------------------------------------------------------------------ chips */
+
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; letter-spacing: .01em;
+  border: 1px solid var(--border-strong); background: var(--bg-overlay);
+  color: var(--text-muted); white-space: nowrap;
+}
+.chip.ok   { color: var(--ok);   border-color: var(--ok-border);   background: var(--ok-bg); }
+.chip.warn { color: var(--warn); border-color: var(--warn-border); background: var(--warn-bg); }
+.chip.bad  { color: var(--bad);  border-color: var(--bad-border);  background: var(--bad-bg); }
+.chip.info { color: var(--info); border-color: var(--info-border); background: var(--info-bg); }
+.chip.accent { color: var(--accent); border-color: var(--accent-glow); background: var(--accent-bg); }
+
+.chip-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+/* ------------------------------------------------------------------ table */
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .07em; color: var(--text-dim);
+  padding: 9px 12px; border-bottom: 1px solid var(--border);
+  white-space: nowrap; background: var(--bg-raised);
+  position: sticky; top: 0; z-index: 2;
+}
+td {
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  vertical-align: top; font-size: 13px;
+}
+tbody tr { transition: background .12s var(--ease); }
+tbody tr:hover { background: var(--bg-overlay); }
+tbody tr:last-child td { border-bottom: none; }
+.td-tight { white-space: nowrap; }
+.td-summary { max-width: 520px; }
+
+/* ------------------------------------------------------------------ forms */
+
+input, select, textarea, button { font-family: inherit; font-size: 13px; }
+
+/* Every text-like input, expressed as an exclusion rather than a list.
+ * The previous version enumerated the types to style and omitted
+ * input[type="password"], which then fell back to the browser's native white
+ * box in the middle of a dark form. Excluding the handful of inputs that
+ * should keep their native appearance means a type we have not thought of yet
+ * is styled by default rather than forgotten. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="hidden"]),
+select, textarea {
+  background: var(--bg-input); color: var(--text);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  padding: 6px 9px; outline: none; width: 100%;
+  transition: border-color .14s var(--ease), box-shadow .14s var(--ease);
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
+label.field { display: block; }
+label.field > span {
+  display: block; font-size: 11px; font-weight: 600; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px;
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 7px 13px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); background: var(--bg-overlay);
+  color: var(--text); font-weight: 550; cursor: pointer;
+  transition: background .14s var(--ease), border-color .14s var(--ease), transform .1s var(--ease);
+  white-space: nowrap;
+}
+.btn:hover { background: var(--bg-raised); border-color: var(--text-dim); }
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+.btn-primary:hover { filter: brightness(1.08); border-color: var(--accent); }
+.btn-ok  { background: var(--ok-bg);  border-color: var(--ok-border);  color: var(--ok); }
+.btn-bad { background: var(--bad-bg); border-color: var(--bad-border); color: var(--bad); }
+.btn-sm { padding: 4px 9px; font-size: 12px; }
+
+.filters {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px; align-items: end;
+}
+
+/* --------------------------------------------------------------- timeline */
+
+.timeline { position: relative; padding-left: 30px; }
+.timeline::before {
+  content: ''; position: absolute; left: 11px; top: 10px; bottom: 10px;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, var(--border-strong) 8%, var(--border-strong) 92%, transparent);
+}
+
+.tl-item { position: relative; padding-bottom: 14px; }
+.tl-dot {
+  position: absolute; left: -24px; top: 14px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--bg); border: 2px solid var(--border-strong);
+  z-index: 1;
+}
+.tl-item[data-kind="investigate"]      .tl-dot { border-color: var(--info); }
+.tl-item[data-kind="propose_fix"]      .tl-dot { border-color: var(--accent); }
+.tl-item[data-kind="request_approval"] .tl-dot { border-color: var(--warn); }
+.tl-item[data-kind="approve"]          .tl-dot { border-color: var(--ok);   background: var(--ok); }
+.tl-item[data-kind="reject"]           .tl-dot { border-color: var(--bad);  background: var(--bad); }
+.tl-item[data-kind="execute"]          .tl-dot { border-color: var(--ok);   background: var(--ok); }
+
+/* --------------------------------------------------------------- evidence */
+
+.evidence {
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden; margin-top: 8px; background: var(--bg-input);
+}
+.evidence > summary {
+  padding: 8px 12px; cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: 8px; font-size: 12px;
+  transition: background .12s var(--ease);
+}
+.evidence > summary::-webkit-details-marker { display: none; }
+.evidence > summary:hover { background: var(--bg-overlay); }
+.evidence > summary::before {
+  content: '▸'; color: var(--text-dim); font-size: 10px;
+  transition: transform .18s var(--ease); display: inline-block;
+}
+.evidence[open] > summary::before { transform: rotate(90deg); }
+.evidence-src { color: var(--text-muted); font-family: var(--mono); font-size: 11px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.evidence pre {
+  margin: 0; padding: 12px; background: var(--bg);
+  border-top: 1px solid var(--border);
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.6;
+  overflow-x: auto; max-height: 420px; color: var(--text-muted);
+  white-space: pre-wrap; word-break: break-word;
+}
+
+/* ------------------------------------------------------------------ misc */
+
+.kv { display: grid; grid-template-columns: 150px 1fr; gap: 7px 16px; font-size: 13px; }
+.kv dt { color: var(--text-dim); font-size: 12px; }
+.kv dd { margin: 0; min-width: 0; word-break: break-word; }
+
+.empty {
+  text-align: center; padding: 56px 20px; color: var(--text-dim);
+}
+.empty-title { font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+
+.banner {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 11px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--info-border); background: var(--info-bg);
+  font-size: 13px; color: var(--text-muted);
+}
+.banner.warn { border-color: var(--warn-border); background: var(--warn-bg); }
+.banner.bad  { border-color: var(--bad-border);  background: var(--bad-bg); }
+
+.section-title {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-dim); font-weight: 600; margin: 24px 0 10px;
+}
+
+.flex { display: flex; align-items: center; gap: 10px; }
+.flex-wrap { flex-wrap: wrap; }
+.muted { color: var(--text-muted); }
+.dim { color: var(--text-dim); }
+.small { font-size: 12px; }
+.nowrap { white-space: nowrap; }
+.mt-0 { margin-top: 0; } .mt-1 { margin-top: 8px; } .mt-2 { margin-top: 16px; }
+.mb-1 { margin-bottom: 8px; } .mb-2 { margin-bottom: 16px; }
+
+/* Entrance motion — enhancement only; the page is complete without it. */
+@media (prefers-reduced-motion: no-preference) {
+  .rise { animation: rise .42s var(--ease) both; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+}
+
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+  .content { padding: 16px; }
+  .kv { grid-template-columns: 1fr; gap: 2px 0; }
+  .kv dt { margin-top: 8px; }
+}
+
+@media print {
+  .sidebar, .topbar, .no-print { display: none !important; }
+  body { background: #fff; color: #000; }
+  .card { border: 1px solid #ccc; box-shadow: none; break-inside: avoid; }
+}
+
+/* Signed-in user chip in the sidebar. */
+.avatar {
+  width: 22px; height: 22px; flex: 0 0 22px;
+  border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(140deg, var(--accent), var(--info));
+  color: #fff; font-size: 10.5px; font-weight: 700;
+}

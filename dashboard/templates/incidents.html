@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% set nav = 'incidents' %}
+{% block title %}Incidents{% endblock %}
+{% block heading %}Incidents{% endblock %}
+{% block subheading %}One row per incident; open one to see its full chain{% endblock %}
+
+{% block content %}
+<div class="card rise">
+  <div class="card-head"><span class="card-title">{{ incidents|length }} incident{{ '' if incidents|length == 1 else 's' }}</span></div>
+  {% if incidents %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Incident</th><th>Started (UTC)</th><th>Duration</th><th>Resource</th>
+        <th>Records</th><th>Status</th><th></th>
+      </tr></thead>
+      <tbody>
+      {% for i in incidents %}
+        {% set status = 'executed' if i.execute_ok else 'execution failed' if i.executed
+                        else 'rejected' if i.rejected else 'awaiting approval' if i.has_request
+                        else 'investigated' %}
+        {% set cls = {'executed':'ok','execution failed':'bad','rejected':'bad',
+                      'awaiting approval':'warn','investigated':'info'}[status] %}
+        <tr onclick="location.href='/incident/{{ i.incident_id }}'" style="cursor:pointer">
+          <td class="mono td-tight">{{ i.incident_id }}</td>
+          <td class="td-tight small mono">{{ i.started | fmt_time }}</td>
+          <td class="td-tight small muted">
+            {{ ((i.ended - i.started).total_seconds() * 1000) | int | duration }}
+          </td>
+          <td class="td-tight small">{{ m.env_chip(i.environment) }} <span class="muted">{{ i.resource_id }}</span></td>
+          <td class="td-tight">{{ i.records }}</td>
+          <td class="td-tight"><span class="chip {{ cls }}">{{ status }}</span></td>
+          <td class="td-tight"><a class="btn btn-sm" href="/incident/{{ i.incident_id }}">Open chain →</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty"><div class="empty-title">No incidents recorded yet</div></div>
+  {% endif %}
+</div>
+{% endblock %}

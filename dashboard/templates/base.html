@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Audit Ledger{% endblock %} · SwarmOps</title>
+<link rel="stylesheet" href="/static/app.css">
+{# Tailwind utilities for the React islands. Emitted as a separate file by
+   Vite's library mode, which does not inject it, and deliberately built
+   without Tailwind preflight so it cannot restyle the server-rendered pages. #}
+<link rel="stylesheet" href="/static/islands/islands.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%238b7cf6'/%3E%3Cg transform='translate(4 4)'%3E%3Ccircle cx='12.0' cy='12.0' r='3.45' fill='white'/%3E%3Ccircle cx='12.0' cy='3.55' r='2.15' fill='white'/%3E%3Ccircle cx='19.35' cy='16.1' r='1.8' fill='white' opacity='0.68'/%3E%3Ccircle cx='4.75' cy='16.1' r='1.4' fill='white' opacity='0.44'/%3E%3C/g%3E%3C/svg%3E">
+<script>
+  // Applied before first paint so a light-mode user never sees a dark flash.
+  try {
+    var t = localStorage.getItem('swarmops-theme');
+    if (t) document.documentElement.dataset.theme = t;
+  } catch (e) { /* private mode: keep the default */ }
+</script>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="sidebar no-print">
+    <div class="brand">
+      <a href="/" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+        <div class="brand-mark"></div>
+        <div>
+          <div class="brand-name">SwarmOps</div>
+          <div class="brand-sub">Audit Ledger</div>
+        </div>
+      </a>
+      {# Out to the product site. The only cross-link that makes sense in this
+         direction: every customer runs their own instance at their own
+         hostname, so there is no single dashboard URL to link back to. #}
+      <a href="https://swarmops.dev" target="_blank" rel="noopener noreferrer"
+         class="brand-out no-print" title="swarmops.dev — documentation and product site"
+         aria-label="Open swarmops.dev in a new tab">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6.5 3H3.4A1.4 1.4 0 002 4.4v8.2A1.4 1.4 0 003.4 14h8.2a1.4 1.4 0 001.4-1.4V9.5"/>
+          <path d="M9.5 2.5H14V7M14 2.5L7.8 8.7"/>
+        </svg>
+      </a>
+    </div>
+
+    <div class="nav-label">Ledger</div>
+    <a class="nav-item {% if nav == 'records' %}active{% endif %}" href="/">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M5 6h6M5 9h6M5 11.5h3.5"/>
+      </svg>
+      All records
+    </a>
+    <a class="nav-item {% if nav == 'incidents' %}active{% endif %}" href="/incidents">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M8 2l6 11H2L8 2z"/><path d="M8 6.5v3M8 11.2v.1"/>
+      </svg>
+      Incidents
+    </a>
+    <a class="nav-item {% if nav == 'approvals' %}active{% endif %}" href="/approvals">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M3 8.5l3.2 3.2L13 5"/>
+      </svg>
+      Approvals
+      {% if pending_count %}<span class="nav-count alert">{{ pending_count }}</span>{% endif %}
+    </a>
+
+    <div class="nav-label">Integrity</div>
+    <a class="nav-item {% if nav == 'verify' %}active{% endif %}" href="/verify">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M8 1.8l5 2v4c0 3-2.1 5.5-5 6.4-2.9-.9-5-3.4-5-6.4v-4l5-2z"/><path d="M5.8 8l1.6 1.6 3-3.2"/>
+      </svg>
+      Verification
+    </a>
+
+    <div class="nav-label">Export</div>
+    <a class="nav-item" href="/export.pdf{% if query_string %}?{{ query_string }}{% endif %}">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M8 2v7.5M5.2 7l2.8 2.8L10.8 7M3 12.5h10"/>
+      </svg>
+      Audit report (PDF)
+    </a>
+    <a class="nav-item" href="/export.csv{% if query_string %}?{{ query_string }}{% endif %}">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M6 2.5v11M2.5 8h11"/>
+      </svg>
+      Raw records (CSV)
+    </a>
+
+    <div style="flex:1"></div>
+
+    {% if auth_mode != 'disabled' %}
+    <div class="nav-label">Signed in</div>
+    <div class="nav-item" style="cursor:default">
+      <span class="avatar">{{ (user.display_name or '?')[0] | upper }}</span>
+      <span style="min-width:0">
+        <span style="display:block;color:var(--text);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ user.display_name }}</span>
+        <span style="display:block;font-size:10.5px;color:var(--text-dim)">
+          {% if user.roles %}{{ user.roles | join(', ') }}{% else %}no roles{% endif %}
+        </span>
+      </span>
+    </div>
+    <a class="nav-item" href="/auth/logout">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M6 3H3.5A1.5 1.5 0 002 4.5v7A1.5 1.5 0 003.5 13H6M10 11l3-3-3-3M13 8H6"/>
+      </svg>
+      Sign out
+    </a>
+    {% endif %}
+
+    <button class="nav-item" id="theme-toggle" style="border:0;background:none;width:100%;text-align:left;cursor:pointer">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="8" cy="8" r="3.2"/><path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2L3.1 3.1"/>
+      </svg>
+      <span id="theme-label">Light mode</span>
+    </button>
+  </aside>
+
+  <div class="main">
+    <header class="topbar no-print">
+      <div>
+        <div class="topbar-title">{% block heading %}Audit Ledger{% endblock %}</div>
+        <div class="topbar-sub">{% block subheading %}{% endblock %}</div>
+      </div>
+      <div class="spacer"></div>
+      {# React island: the command palette. Server-rendered pages stay complete
+         without it -- if the bundle fails to load this is simply an empty slot,
+         and every destination it offers is reachable from the sidebar. #}
+      <div data-island="command-search" class="no-print" style="margin-right:6px"></div>
+      {% set v = verification %}
+      <a class="trust {% if not v.ok %}bad{% endif %}" href="/verify"
+         title="Recomputed from stored content {{ v.age_seconds }}s ago">
+        <span class="trust-dot"></span>
+        {% if v.ok %}
+          {{ v.verified_records }}/{{ v.total_records }} records verified, no gaps detected
+        {% else %}
+          {{ v.findings|length }} integrity problem{{ '' if v.findings|length == 1 else 's' }} detected
+        {% endif %}
+      </a>
+    </header>
+
+    <main class="content">
+      {% if auth_mode == 'disabled' %}
+      <div class="banner bad mb-2 no-print"><span>&#9888;</span><span>
+        <strong>This dashboard is unauthenticated.</strong> Anyone who can reach it can approve
+        and execute changes, and every approval will be recorded against
+        <span class="mono">insecure|anonymous</span> &mdash; an identity that proves nothing.
+        Set <span class="mono">SWARMOPS_AUTH_MODE=oidc</span> before using this for real decisions.
+      </span></div>
+      {% elif auth_mode == 'dev' %}
+      <div class="banner warn mb-2 no-print"><span>&#9888;</span><span>
+        <strong>Development authentication.</strong> Identities come from a local file and are
+        not vouched for by any identity provider.
+      </span></div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+<script type="module" src="/static/islands/islands.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

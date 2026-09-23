@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% set nav = 'records' %}
+{% block title %}All records{% endblock %}
+{% block heading %}Agent action records{% endblock %}
+{% block subheading %}Every consequential action, with the policy and evidence behind it{% endblock %}
+
+{% block content %}
+<div class="grid grid-4 mb-2 rise">
+  <div class="card stat">
+    <div class="stat-label">Records</div>
+    <div class="stat-value">{{ stats.total }}</div>
+    <div class="stat-context">across {{ stats.incidents }} incident{{ '' if stats.incidents == 1 else 's' }}</div>
+  </div>
+  <div class="card stat">
+    <div class="stat-label">Awaiting approval</div>
+    <div class="stat-value" {% if stats.pending_approvals %}style="color:var(--warn)"{% endif %}>{{ stats.pending_approvals }}</div>
+    <div class="stat-context">
+      {% if stats.pending_approvals %}<a href="/approvals" style="color:var(--warn)">review now →</a>
+      {% else %}nothing blocked{% endif %}
+    </div>
+  </div>
+  <div class="card stat">
+    <div class="stat-label">Executions</div>
+    {% set ex = stats.by_action | selectattr('action_type','equalto','execute') | map(attribute='n') | sum %}
+    <div class="stat-value">{{ ex }}</div>
+    <div class="stat-context">each one human-approved</div>
+  </div>
+  <div class="card stat">
+    <div class="stat-label">Chain integrity</div>
+    <div class="stat-value" style="color:{{ 'var(--ok)' if verification.ok else 'var(--bad)' }}">
+      {{ '100%' if verification.ok else 'BROKEN' }}
+    </div>
+    <div class="stat-context">verified {{ verification.checked_at | relative }}</div>
+  </div>
+</div>
+
+<form class="card mb-2 no-print" method="get" action="/">
+  <div class="card-head"><span class="card-title">Filter</span>
+    <span class="card-sub">Narrow the ledger, then export exactly what you see</span></div>
+  <div class="card-body">
+    <div class="filters">
+      <label class="field"><span>From</span>
+        <input type="datetime-local" name="start" value="{{ filters.start or '' }}"></label>
+      <label class="field"><span>To</span>
+        <input type="datetime-local" name="end" value="{{ filters.end or '' }}"></label>
+      <label class="field"><span>Actor</span>
+        <select name="actor"><option value="">Any</option>
+          {% for o in options.actor %}<option value="{{ o }}" {{ 'selected' if filters.actor == o }}>{{ o }}</option>{% endfor %}
+        </select></label>
+      <label class="field"><span>Action</span>
+        <select name="action_type"><option value="">Any</option>
+          {% for o in options.action_type %}<option value="{{ o }}" {{ 'selected' if filters.action_type == o }}>{{ o }}</option>{% endfor %}
+        </select></label>
+      <label class="field"><span>Environment</span>
+        <select name="environment"><option value="">Any</option>
+          {% for o in options.environment %}<option value="{{ o }}" {{ 'selected' if filters.environment == o }}>{{ o }}</option>{% endfor %}
+        </select></label>
+      <label class="field"><span>Outcome</span>
+        <select name="outcome"><option value="">Any</option>
+          {% for o in options.outcome %}<option value="{{ o }}" {{ 'selected' if filters.outcome == o }}>{{ o }}</option>{% endfor %}
+        </select></label>
+      <label class="field"><span>Search</span>
+        <input type="search" name="search" placeholder="summary, resource, incident" value="{{ filters.search or '' }}"></label>
+      <div class="flex">
+        <button class="btn btn-primary" type="submit">Apply</button>
+        <a class="btn" href="/">Clear</a>
+      </div>
+    </div>
+  </div>
+</form>
+
+<div class="card rise">
+  <div class="card-head">
+    <span class="card-title">{{ records|length }} record{{ '' if records|length == 1 else 's' }}</span>
+    <span class="spacer"></span>
+    <a class="btn btn-sm no-print" href="/export.csv{% if query_string %}?{{ query_string }}{% endif %}">Export CSV</a>
+    <a class="btn btn-sm btn-primary no-print" href="/export.pdf{% if query_string %}?{{ query_string }}{% endif %}">Audit report</a>
+  </div>
+  {% if records %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Time (UTC)</th><th>Action</th><th>Summary</th>
+        <th>Actor</th><th>Target</th><th>Policy rule</th><th>Approver</th>
+        <th>Outcome</th><th>Incident</th>
+      </tr></thead>
+      <tbody>
+      {% for r in records %}
+        <tr onclick="location.href='/record/{{ r.record_id }}'" style="cursor:pointer">
+          <td class="td-tight dim mono">{{ r.seq }}</td>
+          <td class="td-tight mono small">{{ r.timestamp | fmt_time('%m-%d %H:%M:%S') }}</td>
+          <td class="td-tight">{{ m.action_chip(r.action_type) }}</td>
+          <td class="td-summary">{{ r.summary }}</td>
+          <td class="td-tight small muted">{{ r.actor.agent_name }}</td>
+          <td class="td-tight small">
+            {{ m.env_chip(r.target.environment) }}
+            <span class="muted">{{ r.target.resource_id }}</span>
+          </td>
+          <td class="td-tight small mono muted">{{ r.policy_reference.allowed_by }}</td>
+          <td class="td-tight small">
+            {% if r.approver %}
+              {{ r.approver.approver_id }}
+              {% if r.approver.approval_channel == 'trial_harness_unattended' %}
+                <span class="chip warn" title="Approved by an automated trial harness under standing pre-authorisation, not a per-incident human review">unattended</span>
+              {% endif %}
+            {% else %}<span class="dim">—</span>{% endif %}
+          </td>
+          <td class="td-tight">{{ m.outcome_chip(r.outcome.status) }}</td>
+          <td class="td-tight small"><a class="mono" href="/incident/{{ r.incident_id }}">{{ r.incident_id }}</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if offset or has_more %}
+  <div class="card-body flex no-print" style="border-top:1px solid var(--border)">
+    {% if offset %}<a class="btn btn-sm" href="?{{ query_string }}&offset={{ [offset - limit, 0] | max }}">← Newer</a>{% endif %}
+    <span class="spacer"></span>
+    <span class="dim small">showing {{ offset + 1 }}–{{ offset + records|length }}</span>
+    <span class="spacer"></span>
+    {% if has_more %}<a class="btn btn-sm" href="?{{ query_string }}&offset={{ offset + limit }}">Older →</a>{% endif %}
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="empty">
+    <div class="empty-title">No records match these filters</div>
+    <div class="small">Run <code>python scripts/run_incident.py --fault bad_deploy</code> to generate one.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ post.seo_title }}{% endblock %}
+{% block description %}{{ post.description }}{% endblock %}
+{% block og_type %}article{% endblock %}
+
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": {{ post.title | tojson }},
+  "description": {{ post.description | tojson }},
+  "datePublished": "{{ post.published }}",
+  "dateModified": "{{ post.published }}",
+  "author": { "@type": "Organization", "name": "{{ site_name }}", "url": "{{ base_url }}" },
+  "publisher": { "@type": "Organization", "name": "{{ site_name }}" },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "{{ base_url }}{{ post.url }}" },
+  "keywords": {{ post.tags | join(', ') | tojson }}
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<article class="section">
+  <div class="wrap narrow">
+    <a href="/resources/" style="font-size:14px;color:var(--text-dim)">← All notes</a>
+    <h1 style="font-size:clamp(28px,4.2vw,42px);margin:18px 0 14px">{{ post.title }}</h1>
+    <div class="post-meta" style="margin-bottom:8px">
+      <time datetime="{{ post.published }}">{{ post.published }}</time>
+      <span>·</span><span>{{ post.reading_minutes }} min read</span>
+      {% for tag in post.tags %}<span class="badge">{{ tag }}</span>{% endfor %}
+    </div>
+    <p style="color:var(--text-muted);font-size:18.5px;line-height:1.6;margin:18px 0 34px;
+              padding-bottom:26px;border-bottom:1px solid var(--border)">{{ post.description }}</p>
+
+    <div class="prose">
+      {{ post.body_html | safe }}
+    </div>
+
+    <div class="card" style="margin-top:48px;text-align:center">
+      <h3>SwarmOps is the audit ledger these notes come from</h3>
+      <p style="color:var(--text-muted);margin:10px 0 18px">
+        A vendor-neutral, tamper-evident record of what your AI agents did, under what authority,
+        and who approved it.
+      </p>
+      <a class="btn btn-primary" href="/waitlist/">Join the waitlist</a>
+      <a class="btn btn-ghost" href="/how-it-works/">How it works</a>
+    </div>
+
+    {% set others = posts | rejectattr('slug', 'equalto', post.slug) | list %}
+    {% if others %}
+    <h3 style="margin:48px 0 16px">More notes</h3>
+    <div class="grid grid-2">
+      {% for other in others[:2] %}
+      <a class="card card-hover" href="{{ other.url }}">
+        <div class="post-meta" style="margin-bottom:8px;font-size:13px">
+          <time datetime="{{ other.published }}">{{ other.published }}</time>
+          <span>·</span><span>{{ other.reading_minutes }} min</span>
+        </div>
+        <h3 style="color:var(--text);font-size:17px">{{ other.title }}</h3>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</article>
+{% endblock %}

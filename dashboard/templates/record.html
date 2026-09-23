@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% set nav = 'records' %}
+{% block title %}Record {{ record.record_id | short(8) }}{% endblock %}
+{% block heading %}{{ m.action_chip(record.action_type) }} record{% endblock %}
+{% block subheading %}<span class="mono">{{ record.record_id }}</span>{% endblock %}
+
+{% block content %}
+{% if request.query_params.get('exec_error') %}
+<div class="banner bad mb-2"><span>✕</span>
+  <span>The decision was recorded, but execution failed:
+  {{ request.query_params.get('exec_error') }}</span></div>
+{% endif %}
+
+<div class="card rise mb-2">
+  <div class="card-head">
+    <span class="card-title">{{ record.summary }}</span>
+    <span class="spacer"></span>
+    {{ m.outcome_chip(record.outcome.status) }}
+    <a class="btn btn-sm" href="/incident/{{ record.incident_id }}">Full chain →</a>
+  </div>
+  <div class="card-body">
+    <dl class="kv">
+      <dt>Incident</dt><dd><a class="mono" href="/incident/{{ record.incident_id }}">{{ record.incident_id }}</a></dd>
+      <dt>Occurred</dt><dd>{{ record.timestamp | fmt_time }} <span class="dim">({{ record.timestamp | relative }})</span></dd>
+      <dt>Actor</dt>
+      <dd>{{ record.actor.agent_name }} v{{ record.actor.agent_version }}
+        <span class="chip">{{ record.actor.tool_or_platform }}</span>
+        {% if record.actor.model %}<span class="chip">{{ record.actor.model }}</span>{% endif %}
+        <div class="small dim mt-1">invocation {{ record.actor.invocation_id }}</div></dd>
+      <dt>Target</dt>
+      <dd>{{ m.env_chip(record.target.environment) }}
+        <span class="mono">{{ record.target.resource_id }}</span>
+        <span class="dim small">({{ record.target.resource_type }})</span></dd>
+      <dt>Policy</dt>
+      <dd><span class="mono">{{ record.policy_reference.allowed_by }}</span>
+        <span class="dim small">in {{ record.policy_reference.policy_id }}</span>
+        <div class="small muted mt-1">{{ record.policy_reference.policy_description }}</div>
+        {% if record.policy_reference.policy_digest %}
+          <div class="hash mt-1" title="sha256 of the exact policy text in force at the time">{{ record.policy_reference.policy_digest }}</div>
+        {% endif %}</dd>
+      {% if record.approver %}
+      <dt>Approver</dt>
+      <dd><strong>{{ record.approver.approver_id }}</strong>
+        <span class="chip {{ 'ok' if record.approver.approver_type == 'human' else 'warn' }}">{{ record.approver.approver_type }}</span>
+        <div class="small dim mt-1">{{ record.approver.approved_at | fmt_time }} via {{ record.approver.approval_channel }}</div>
+        {% if record.approver.decision_note %}<div class="muted small mt-1">“{{ record.approver.decision_note }}”</div>{% endif %}</dd>
+      {% endif %}
+      {% if record.in_response_to %}
+      <dt>In response to</dt>
+      <dd><a class="mono" href="/record/{{ record.in_response_to }}">{{ record.in_response_to }}</a></dd>
+      {% endif %}
+      <dt>Outcome</dt>
+      <dd>{{ m.outcome_chip(record.outcome.status) }}
+        {% if record.outcome.get('duration_ms') is not none %}<span class="dim small">{{ record.outcome.duration_ms | duration }}</span>{% endif %}
+        <div class="muted mt-1" style="white-space:pre-wrap">{{ record.outcome.details }}</div></dd>
+    </dl>
+  </div>
+</div>
+
+{% if record.proposed_action %}
+<div class="card mb-2 rise">
+  <div class="card-head"><span class="card-title">Proposed change</span>
+    <span class="spacer"></span>
+    <span class="chip {{ 'ok' if record.proposed_action.reversible else 'bad' }}">
+      {{ 'reversible' if record.proposed_action.reversible else 'IRREVERSIBLE' }}</span>
+    <span class="chip">{{ record.proposed_action.blast_radius }}</span>
+  </div>
+  <div class="card-body">
+    <p class="mt-0">{{ record.proposed_action.description }}</p>
+    <div class="section-title">Exact command</div>
+    <pre style="margin:0;padding:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:12px;overflow-x:auto;white-space:pre-wrap">{{ record.proposed_action.command_or_diff }}</pre>
+  </div>
+</div>
+{% endif %}
+
+{% if record.evidence %}
+<div class="card mb-2 rise">
+  <div class="card-head"><span class="card-title">Evidence ({{ record.evidence|length }})</span>
+    <span class="card-sub">What the actor looked at to justify this action</span></div>
+  <div class="card-body">
+    {% for item in record.evidence %}{{ m.evidence_block(item, loop.index) }}{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card rise">
+  <div class="card-head"><span class="card-title">Integrity</span>
+    <span class="card-sub">These hashes are what make the record tamper-evident</span></div>
+  <div class="card-body">
+    <dl class="kv">
+      <dt>record_hash</dt><dd class="hash">{{ record.record_hash }}</dd>
+      <dt>prev_record_hash</dt><dd class="hash">{{ record.prev_record_hash }}</dd>
+      <dt>schema version</dt><dd class="mono">{{ record.schema_version }}</dd>
+    </dl>
+    <details class="evidence mt-2">
+      <summary><span class="chip">raw JSON</span>
+        <span class="evidence-src">the exact payload that was hashed (minus record_hash itself)</span></summary>
+      <pre>{{ raw }}</pre>
+    </details>
+  </div>
+</div>
+{% endblock %}
