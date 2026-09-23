@@ -36,7 +36,7 @@ from dashboard.auth import (
 
 from approval.executor import Executor
 from approval.gate import ApprovalGate
-from ledger.evidence_store import EvidenceStore
+from ledger.evidence_store import default_store
 from ledger.store import LedgerStore
 from scripts.verify_chain import verify
 
@@ -99,7 +99,7 @@ async def attach_user(request: Request, call_next):
 
 store = LedgerStore()
 gate = ApprovalGate()
-evidence_store = EvidenceStore(ROOT / "evidence_store")
+evidence_store = default_store()
 
 ACTION_ORDER = [
     "investigate", "propose_fix", "request_approval",

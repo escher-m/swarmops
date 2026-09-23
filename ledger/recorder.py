@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .evidence_store import EvidenceStore
+from .evidence_store import EvidenceStore, default_store
 from .policy import Decision, evaluate
 from .store import AppendResult, LedgerStore, utcnow
 from .validation import SCHEMA_VERSION
@@ -83,7 +83,7 @@ class Recorder:
     target: Target
     store: LedgerStore = field(default_factory=LedgerStore)
     evidence_store: EvidenceStore = field(
-        default_factory=lambda: EvidenceStore(ROOT / "evidence_store")
+        default_factory=default_store
     )
 
     # ------------------------------------------------------------- evidence

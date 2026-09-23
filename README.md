@@ -254,6 +254,29 @@ unauthenticated, and — against a real throwaway Postgres — chain linkage,
 append-only enforcement including on an empty table, and the verifier correctly
 detecting edited and deleted records.
 
+## Deploying
+
+The dashboard runs inside the estate that produces the actions it records, not
+as a hosted service. `deploy/` holds a reference Dockerfile and compose file:
+
+```bash
+cp deploy/.env.example deploy/.env       # fill in three secrets
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --build
+```
+
+The image carries twelve Python packages rather than the 190 in
+`requirements.txt` — HolmesGPT and the LLM stack have no business in a service
+that reads a database and renders HTML. Evidence blobs need the named volume:
+without it the store is empty after every restart and the verifier correctly
+reports `evidence_missing` on records nobody touched.
+
+The marketing site is separate and static. `vercel.json` builds it with two
+dependencies; the dashboard is not deployable to a serverless host, because it
+needs a long-running process, a writable filesystem and a Postgres it owns.
+
+See [deploy/README.md](deploy/README.md), including an explicit note on what is
+and is not verified.
+
 ## Known gaps
 
 The full list, prioritised, is in [TODO.md](TODO.md). The ones worth knowing before you

@@ -28,7 +28,7 @@ from typing import Any
 import httpx
 
 from approval.gate import GATE_VERSION
-from ledger.evidence_store import EvidenceStore
+from ledger.evidence_store import default_store
 from ledger.policy import evaluate
 from ledger.recorder import Actor, PolicyRefusal, Recorder, Target
 from ledger.store import LedgerStore
@@ -60,7 +60,7 @@ class Executor:
     def __init__(self, *, seedapp_base: str = "http://127.0.0.1:8081", store: LedgerStore | None = None):
         self.base = seedapp_base.rstrip("/")
         self.store = store or LedgerStore()
-        self.evidence = EvidenceStore(__import__("pathlib").Path(__file__).resolve().parent.parent / "evidence_store")
+        self.evidence = default_store()
 
     # ------------------------------------------------------------- authority
 

@@ -29,6 +29,27 @@ from pathlib import Path
 # where record_hash already covers it. 8 KiB matches the schema's inline cap.
 INLINE_MAX_BYTES = 8192
 
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def default_store_path() -> Path:
+    """Where evidence blobs live.
+
+    Honours SWARMOPS_EVIDENCE_DIR so a containerised deployment can point this
+    at a mounted volume. That matters more than it looks: if the store is not
+    persistent, it is empty after every restart and verify_chain.py correctly
+    reports evidence_missing on records nobody has touched -- an integrity
+    alarm caused purely by deployment.
+    """
+    import os
+
+    configured = os.environ.get("SWARMOPS_EVIDENCE_DIR")
+    return Path(configured) if configured else _REPO_ROOT / "evidence_store"
+
+
+def default_store() -> "EvidenceStore":
+    return EvidenceStore(default_store_path())
+
 
 class EvidenceIntegrityError(RuntimeError):
     """Raised when stored bytes do not match the address they were fetched by."""

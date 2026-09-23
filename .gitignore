@@ -28,3 +28,6 @@ dev_users.json
 # React island build: node_modules is restored by `npm ci`, the bundle by `npm run build`.
 dashboard/ui/node_modules/
 dashboard/static/islands/
+
+# Deployment secrets.
+deploy/.env

@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from ledger.canonical import GENESIS_HASH, seal  # noqa: E402
-from ledger.evidence_store import EvidenceStore  # noqa: E402
+from ledger.evidence_store import default_store  # noqa: E402
 from ledger.validation import SCHEMA_VERSION, validate_record  # noqa: E402
 
 INCIDENT = "INC-2026-0918-0042"
@@ -367,7 +367,7 @@ def build_chain(store: EvidenceStore) -> list[dict]:
 
 
 def main() -> int:
-    store = EvidenceStore(ROOT / "evidence_store")
+    store = default_store()
     chain = build_chain(store)
 
     out_dir = ROOT / "schema" / "fixtures"

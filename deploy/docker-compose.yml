@@ -1,0 +1,90 @@
+# Reference deployment: the dashboard and its ledger database.
+#
+# This is the shape a customer runs inside their own network. It is not a
+# hosted service -- the whole premise is that agent traces and evidence never
+# leave the estate that produced them.
+#
+#   cp deploy/.env.example deploy/.env   # then fill in the secrets
+#   docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d
+#
+# Run from the repository root: the build context is the repo, so the image can
+# copy application code.
+
+name: swarmops
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${SWARMOPS_DB_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${SWARMOPS_DB_SUPERUSER_PASSWORD:?set this in deploy/.env}
+      POSTGRES_DB: postgres
+      # Scram rather than the image default of trust-for-local: the ledger's
+      # guarantee is a privilege boundary between two roles, and that is worth
+      # nothing if either can be assumed without a credential.
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - ledger-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SWARMOPS_DB_SUPERUSER:-postgres} -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    # Not published to the host. Nothing outside this network has any business
+    # talking to the ledger database directly.
+    expose:
+      - "5432"
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SWARMOPS_DB_HOST: postgres
+      SWARMOPS_DB_PORT: "5432"
+      SWARMOPS_DB_NAME: ${SWARMOPS_DB_NAME:-swarmops_ledger}
+      SWARMOPS_DB_SUPERUSER: ${SWARMOPS_DB_SUPERUSER:-postgres}
+      SWARMOPS_DB_SUPERUSER_PASSWORD: ${SWARMOPS_DB_SUPERUSER_PASSWORD:?set this in deploy/.env}
+      SWARMOPS_APP_PASSWORD: ${SWARMOPS_APP_PASSWORD:?set this in deploy/.env}
+
+      SWARMOPS_ENV: production
+      SWARMOPS_SECRET_KEY: ${SWARMOPS_SECRET_KEY:?openssl rand -base64 48}
+
+      # Authentication. SWARMOPS_ENV=production makes the dashboard refuse both
+      # dev identities and no-auth-at-all, so these are not optional.
+      SWARMOPS_AUTH_MODE: ${SWARMOPS_AUTH_MODE:-oidc}
+      SWARMOPS_OIDC_DISCOVERY_URL: ${SWARMOPS_OIDC_DISCOVERY_URL:-}
+      SWARMOPS_OIDC_CLIENT_ID: ${SWARMOPS_OIDC_CLIENT_ID:-}
+      SWARMOPS_OIDC_CLIENT_SECRET: ${SWARMOPS_OIDC_CLIENT_SECRET:-}
+      SWARMOPS_OIDC_REDIRECT_URL: ${SWARMOPS_OIDC_REDIRECT_URL:-}
+      SWARMOPS_OIDC_PROVIDER_NAME: ${SWARMOPS_OIDC_PROVIDER_NAME:-oidc}
+      SWARMOPS_OIDC_ROLES_CLAIM: ${SWARMOPS_OIDC_ROLES_CLAIM:-groups}
+      SWARMOPS_APPROVER_ROLES: ${SWARMOPS_APPROVER_ROLES:-sre-oncall}
+
+      SWARMOPS_EVIDENCE_DIR: /var/lib/swarmops/evidence
+    volumes:
+      # Evidence must outlive the container. Without this the store is empty on
+      # every restart and the verifier reports evidence_missing on records
+      # nobody has touched -- an integrity alarm caused purely by deployment.
+      - evidence:/var/lib/swarmops/evidence
+    ports:
+      - "${SWARMOPS_BIND:-127.0.0.1}:8090:8090"
+    # Bound to loopback by default. Put a TLS-terminating reverse proxy in
+    # front before changing that: session cookies are only marked Secure when
+    # the request arrived over HTTPS.
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+volumes:
+  ledger-data:
+  evidence:

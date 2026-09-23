@@ -2,7 +2,7 @@
 # nothing here is required to use the project.
 VENV := .venv/bin
 
-.PHONY: setup db-up db-down seed app dashboard test verify tamper append-only incident trials site site-serve islands shots clean
+.PHONY: setup db-up db-down seed app dashboard test verify tamper append-only incident trials site site-serve islands shots image compose-up compose-down clean
 
 setup:        ; bash scripts/setup.sh
 db-up:        ; ./scripts/pg.sh up
@@ -17,6 +17,9 @@ append-only:  ; bash scripts/prove_append_only.sh
 incident:     ; $(VENV)/python scripts/run_incident.py --fault $(FAULT)
 trials:       ; $(VENV)/python scripts/run_trials.py --runs $(or $(RUNS),20)
 islands:      ; cd dashboard/ui && npm install && npm run build
+image:        ; docker build -f deploy/Dockerfile -t swarmops-dashboard:dev .
+compose-up:   ; docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --build
+compose-down: ; docker compose -f deploy/docker-compose.yml down
 shots:        ; $(VENV)/python scripts/capture_shots.py
 site:         ; $(VENV)/python site/build.py
 site-serve:   ; $(VENV)/python site/build.py --serve

@@ -123,6 +123,21 @@ Never audited. Needs: contrast ratios in both themes, keyboard navigation, visib
 states, screen-reader labels on icon-only buttons, and `prefers-reduced-motion` honoured
 everywhere (the reveal animations already check it; the rest has not been reviewed).
 
+### [ ] Build the dashboard image once, somewhere with Docker
+`deploy/Dockerfile` and `deploy/docker-compose.yml` exist and the entrypoint's whole
+database sequence is verified against a real Postgres, but **`docker build` has never
+run** — there is no container runtime on the development machine. Most likely to bite:
+`psycopg[binary]` wheel availability on the build platform, and whether `npm ci` is
+happy with the committed lockfile.
+**Done when:** the image builds and `compose up` serves a working dashboard.
+
+### [ ] No backup or restore story for a deployed ledger
+Append-only means damage cannot be repaired in place, and evidence blobs live on a
+separate volume from the database. A restore that puts them at different points in
+time produces a ledger that does not verify.
+**Done when:** a documented, drilled restore produces a ledger that passes
+`verify_chain.py`.
+
 ### [ ] Hosted read-only demo
 The site now shows real screenshots, but a prospect still cannot *use* anything. A demo
 instance — seeded incidents, auth bypassed, every write disabled, a persistent banner
@@ -210,6 +225,18 @@ per-tool-call traffic from many agents at once.
 ---
 
 ## Closed
+
+- [x] **The entrypoint's `ALTER ROLE` did not work.** psql performs variable
+  interpolation for input read from a file or stdin but **not** for `-c`, where
+  the string reaches the server verbatim and `:'app_password'` is a syntax error.
+  Caught by running the exact line against a real Postgres before shipping it.
+  Now piped on stdin, and verified with a password containing a single quote,
+  `$`, `&` and a space — `:'var'` escapes all of them.
+- [x] **`SWARMOPS_EVIDENCE_DIR` was decorative.** The Dockerfile set it, but the
+  evidence store path was hardcoded in five places (one with an inline
+  `__import__("pathlib")`). Now resolved once in
+  `ledger.evidence_store.default_store_path()`, which the container needs in order
+  to put blobs on a persistent volume.
 
 - [x] **The marketing site never showed the product.** Three pages described a
   compliance dashboard without a single image of one. Added a tabbed screenshot

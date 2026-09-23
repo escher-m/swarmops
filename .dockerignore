@@ -1,0 +1,21 @@
+# Keep the build context small and secrets out of it. Anything listed here is
+# never sent to the daemon, so it cannot end up in a layer by accident.
+.git
+.venv
+.pg
+.pgdata
+.tools
+node_modules
+dashboard/ui/node_modules
+dashboard/static/islands
+site/dist
+evidence_store
+runs
+seedapp/repo
+seedapp/logs
+seedapp/state.json
+.env
+dev_users.json
+**/__pycache__
+**/*.pyc
+.pytest_cache

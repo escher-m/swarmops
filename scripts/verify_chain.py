@@ -40,7 +40,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from ledger.canonical import GENESIS_HASH, compute_record_hash  # noqa: E402
-from ledger.evidence_store import EvidenceStore  # noqa: E402
+from ledger.evidence_store import EvidenceStore, default_store  # noqa: E402
 from ledger.store import LedgerStore  # noqa: E402
 from ledger.validation import validation_errors  # noqa: E402
 
@@ -90,7 +90,7 @@ def verify(
     check_evidence: bool = True,
 ) -> Report:
     store = store or LedgerStore()
-    evidence = evidence or EvidenceStore(ROOT / "evidence_store")
+    evidence = evidence or default_store()
     report = Report()
 
     expected_prev = GENESIS_HASH

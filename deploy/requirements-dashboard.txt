@@ -1,0 +1,23 @@
+# Runtime dependencies for the dashboard image.
+#
+# Nine imports are reachable from dashboard/app.py; this is them plus the
+# server and the form parser. The root requirements.txt pins 190 packages
+# because it covers the whole project -- HolmesGPT, litellm, the kubernetes
+# client, boto3. None of that belongs in an image whose job is to read a
+# database and render HTML, and shipping it would mean every CVE in the LLM
+# stack becomes a CVE in your compliance dashboard.
+#
+# Versions are pinned to what the test suite actually runs against.
+
+fastapi==0.136.3                  # web framework
+uvicorn[standard]==0.40.0         # ASGI server
+jinja2==3.1.6                     # server-rendered templates
+psycopg[binary]==3.3.6            # PostgreSQL driver
+authlib==1.8.0                    # OIDC client
+itsdangerous==2.2.0               # signed session cookies
+jsonschema==4.26.0                # record validation
+reportlab==5.0.1                  # PDF audit report
+PyYAML==6.0.3                     # policy documents
+httpx==0.28.1                     # outbound probes from the executor
+python-multipart==0.0.32          # form parsing for the approval POST
+python-dotenv==1.2.3              # .env loading
