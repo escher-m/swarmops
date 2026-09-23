@@ -12,7 +12,13 @@
 fastapi==0.136.3                  # web framework
 uvicorn[standard]==0.40.0         # ASGI server
 jinja2==3.1.6                     # server-rendered templates
-psycopg[binary]==3.3.6            # PostgreSQL driver
+# Pinned BELOW the version in the development venv (3.3.6) on purpose:
+# psycopg-binary ships no aarch64 wheel above 3.2.13, so 3.3.6 resolves for
+# linux/amd64 and fails outright for linux/arm64 -- which is the default target
+# when building on an Apple Silicon machine, and the slim base image carries no
+# compiler to fall back to. 3.2.13 has wheels for both, and the full test suite
+# passes against it.
+psycopg[binary]==3.2.13            # PostgreSQL driver
 authlib==1.8.0                    # OIDC client
 itsdangerous==2.2.0               # signed session cookies
 jsonschema==4.26.0                # record validation

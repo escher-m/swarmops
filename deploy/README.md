@@ -76,8 +76,17 @@ Verified against a real PostgreSQL 16:
 * every `COPY` source exists and is not excluded by `.dockerignore`
 * the pinned runtime dependencies resolve
 
+* every pinned dependency resolves to a prebuilt wheel for **both**
+  `linux/amd64` and `linux/arm64`, with no source builds — which matters,
+  because the slim base image has no compiler
+* the file set the Dockerfile copies is import-complete: `dashboard.app` and
+  everything it reaches import successfully in a tree containing only those
+  directories and only these twelve packages
+
 **Not verified: `docker build` and `docker compose up` have never been run.**
-There is no container runtime on the machine this was written on. The pieces
-most likely to bite are base-image specifics — wheel availability for
-`psycopg[binary]` on your build platform, and whether `npm ci` is happy with
-the committed lockfile. Build it once somewhere with Docker before trusting it.
+There is no container runtime on the machine this was written on. What remains
+untested is mostly base-image behaviour: whether `npm ci` is happy with the
+committed lockfile on node:22-slim, and whether `read_only: true` holds — the
+assumption is that nothing writes outside `/tmp` and the evidence volume, which
+is true as far as the code goes but has not been exercised. Build it once
+somewhere with Docker before trusting it.
