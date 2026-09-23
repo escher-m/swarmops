@@ -1,0 +1,8 @@
+# Build dependencies for the marketing site only.
+#
+# The root requirements.txt pins 190 packages for the whole project -- Postgres
+# drivers, HolmesGPT, the LLM stack. A static-site host has no use for any of
+# it, and installing it would make every deploy slow and give it a hundred
+# ways to fail that have nothing to do with the site.
+jinja2==3.1.4
+markdown==3.7

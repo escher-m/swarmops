@@ -202,8 +202,12 @@ def build(serve: bool = False) -> int:
     (DIST / "robots.txt").write_text(
         f"User-agent: *\nAllow: /\n\nSitemap: {BASE_URL}/sitemap.xml\n"
     )
-    # Netlify/Vercel-style headers. Referrer-Policy and the CSP matter here:
-    # the site loads nothing third-party, and saying so lets a browser enforce it.
+    # Netlify / Cloudflare Pages header syntax. Vercel does NOT read this file --
+    # it reads vercel.json at the repo root, which carries the same four headers.
+    # They are kept in sync by hand; duplicating four lines beats writing a
+    # generator for a file that most deploys will not use.
+    # The CSP is strict because the site genuinely loads nothing external, and
+    # saying so in a header is what lets the browser enforce it.
     (DIST / "_headers").write_text(
         "/*\n"
         "  X-Frame-Options: DENY\n"
