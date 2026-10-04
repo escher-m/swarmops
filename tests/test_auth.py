@@ -259,3 +259,46 @@ def test_approver_role_gates_the_decide_route():
     cfg = AuthConfig(mode="oidc", approver_roles=("sre-oncall",))
     reader = User("b", "Bob", roles=("compliance-reader",))
     assert not auth_mod.may_approve(cfg, reader)
+
+
+class _StubGate:
+    """Stands in for the approval gate so the decide route can run without a ledger."""
+
+    def __init__(self, error=None):
+        self.error = error
+        self.decisions = []
+
+    def decide(self, **kwargs):
+        if self.error:
+            raise self.error
+        self.decisions.append(kwargs)
+        return "approve-record-id"
+
+
+def _post_decision(dev_app, monkeypatch, stub, **form):
+    monkeypatch.setattr(dev_app, "gate", stub)
+    client = TestClient(dev_app.app, follow_redirects=False)
+    client.post("/auth/login", data={"username": "alice", "password": "pw", "next": "/"})
+    return client.post("/approvals/req-1/decide", data={"note": "why", **form})
+
+
+@pytest.mark.parametrize("form, override", [
+    ({"decision": "approve", "override": "1"}, True),
+    ({"decision": "approve"}, False),
+    ({"decision": "approve", "override": "0"}, False),
+])
+def test_decide_route_passes_the_override_box_through(dev_app, monkeypatch, form, override):
+    stub = _StubGate()
+    resp = _post_decision(dev_app, monkeypatch, stub, **form)
+    assert resp.status_code == 303
+    assert stub.decisions[0]["override"] is override
+
+
+@pytest.mark.parametrize("error", [
+    ValueError("policy does not permit executing this change"),
+    LookupError("no pending approval matching 'req-1'"),
+])
+def test_decide_route_reports_a_refused_decision_as_a_400(dev_app, monkeypatch, error):
+    resp = _post_decision(dev_app, monkeypatch, _StubGate(error), decision="approve")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == str(error)

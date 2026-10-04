@@ -404,7 +404,7 @@ def decide(
             approver_id=user.approver_id,
             display_name=user.display_name,
             channel="web_dashboard",
-            override=bool(override),
+            override=override == "1",
         )
     except (ValueError, LookupError) as exc:
         raise HTTPException(400, str(exc))
