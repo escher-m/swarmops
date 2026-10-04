@@ -411,11 +411,18 @@ def decide(
 
     if approve and execute:
         try:
-            Executor().execute(record_id)
+            result = Executor().execute(record_id)
         except Exception as exc:
             # The decision is already recorded; an execution failure must not
             # roll it back (it cannot) nor be swallowed.
-            return RedirectResponse(f"/record/{record_id}?exec_error={exc}", status_code=303)
+            return RedirectResponse(
+                f"/record/{record_id}?exec_error={quote(str(exc))}", status_code=303)
+        if not result.success:
+            # A refusal or failed fix is recorded, not raised. Show it rather
+            # than let the approver assume the change went through.
+            return RedirectResponse(
+                f"/record/{result.execute_record_id}?exec_error={quote(result.detail)}",
+                status_code=303)
     return RedirectResponse(f"/record/{record_id}", status_code=303)
 
 

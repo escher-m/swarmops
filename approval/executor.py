@@ -147,14 +147,16 @@ class Executor:
 
         # Re-evaluate policy at execution time. The world may have changed since
         # the proposal was written, and the ledger should reflect the decision
-        # that was actually in force when the command ran.
+        # that was actually in force when the command ran. The Recorder evaluates
+        # again when it writes, so it must get the same override flag.
+        override = approve["policy_reference"]["allowed_by"] == "human_override"
         decision = evaluate(
             action_type="execute",
             environment=proposal["target"]["environment"],
             change_type=pa.get("change_type"),
             reversible=pa.get("reversible"),
             blast_radius=pa.get("blast_radius"),
-            human_override=approve["policy_reference"]["allowed_by"] == "human_override",
+            human_override=override,
         )
 
         recorder = Recorder(
@@ -166,7 +168,35 @@ class Executor:
                 invocation_id=f"exec-{approve_record_id[:8]}",
             ),
             target=Target(**proposal["target"]),
+            store=self.store,
         )
+
+        # Refuse before touching the service. The refusal record says "No
+        # change was made", so the service must not be called on this path.
+        if not decision.allowed:
+            try:
+                recorder.emit(
+                    action_type="execute",
+                    summary=(
+                        f"Did not apply the approved remediation '{action}' on "
+                        f"{proposal['target']['resource_id']}."
+                    )[:500],
+                    # The Recorder writes its own refusal status and details.
+                    outcome_status="failure",
+                    outcome_details="",
+                    proposed_action=pa,
+                    approver=approve["approver"],
+                    in_response_to=approve_record_id,
+                    human_override=override,
+                )
+            except PolicyRefusal as refusal:
+                return ExecutionResult(
+                    execute_record_id=refusal.record_id, success=False,
+                    detail=str(refusal), duration_ms=0,
+                )
+            raise ExecutionError(
+                f"policy refused executing {approve_record_id} but the recorder allowed it"
+            )
 
         before_src, before = self._probe(action)
         started = time.perf_counter()
@@ -229,7 +259,7 @@ class Executor:
                 approver=approve["approver"],
                 in_response_to=approve_record_id,
                 duration_ms=duration_ms,
-                human_override=decision.rule_id == "human_override",
+                human_override=override,
             )
         except PolicyRefusal as refusal:
             return ExecutionResult(

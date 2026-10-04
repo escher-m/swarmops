@@ -229,3 +229,99 @@ def test_verifier_detects_a_deleted_record(store, recorder):
     # and the sequence has a hole.
     assert "chain_break" in kinds
     assert "sequence_gap" in kinds
+
+
+# ------------------------------------------------------------------ executor
+
+
+@pytest.fixture
+def service_calls(monkeypatch):
+    """Replace the seeded service with a fake; return the list of calls it got."""
+    from approval import executor as executor_module
+
+    calls: list[tuple[str, str]] = []
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def _reply(self, method, url):
+            calls.append((method, url))
+            return type("Resp", (), {"status_code": 200, "text": '{"ok": true}'})()
+
+        def get(self, url, **kwargs):
+            return self._reply("GET", url)
+
+        def post(self, url, **kwargs):
+            return self._reply("POST", url)
+
+    monkeypatch.setattr(executor_module.httpx, "Client", FakeClient)
+    monkeypatch.setattr(executor_module.time, "sleep", lambda s: None)
+    return calls
+
+
+def _approved_proposal(recorder, *, reversible=True, change_type="rollback_deploy"):
+    """Write investigate -> propose_fix -> request_approval -> approve; return the approve id."""
+    fix = {
+        "description": "Roll back to v1.4.1", "change_type": change_type,
+        "command_or_diff": "kubectl rollout undo deployment/api -n staging",
+        "reversible": reversible, "blast_radius": "single_service",
+    }
+    plan = {**fix, "remediation_action": "rollback_deploy",
+            "remediation_params": {"target_version": "v1.4.1"}}
+    found = recorder.emit(action_type="investigate", summary="found it", outcome_status="success",
+                          outcome_details="d", evidence=evidence(recorder))
+    proposal = recorder.emit(
+        action_type="propose_fix", summary="Proposed rollback", outcome_status="pending",
+        outcome_details="d", proposed_action=fix, in_response_to=found.record_id,
+        evidence=[recorder.capture(evidence_type="diff", source="plan", content=json.dumps(plan))],
+    )
+    request = recorder.emit(action_type="request_approval", summary="Approval requested",
+                            outcome_status="pending", outcome_details="d",
+                            in_response_to=proposal.record_id)
+    approval = recorder.emit(
+        action_type="approve", summary="Approved", outcome_status="success", outcome_details="d",
+        in_response_to=request.record_id,
+        approver={"approver_id": "dev|alice", "approver_type": "human",
+                  "approved_at": "2026-01-01T00:00:00Z", "approval_channel": "cli"},
+    )
+    return approval.record_id
+
+
+@pytest.mark.parametrize("proposal, refused_by", [
+    ({"reversible": False}, "rule:deny_irreversible_change"),
+    ({"change_type": "code_change"}, "default_deny"),
+])
+def test_executor_does_not_touch_the_service_when_policy_refuses(
+        store, recorder, service_calls, proposal, refused_by):
+    from approval.executor import Executor
+
+    approve_id = _approved_proposal(recorder, **proposal)
+    result = Executor(store=store).execute(approve_id)
+
+    assert not result.success
+    assert service_calls == [], "a refused change must not reach the service"
+    refusal = store.get(result.execute_record_id)
+    assert refusal["action_type"] == "execute"
+    assert refusal["outcome"]["status"] == "failure"
+    assert refusal["summary"].startswith("REFUSED BY POLICY")
+    assert refusal["policy_reference"]["allowed_by"] == refused_by
+
+
+def test_executor_applies_a_change_policy_allows(store, recorder, service_calls):
+    from approval.executor import Executor
+
+    approve_id = _approved_proposal(recorder)
+    result = Executor(store=store).execute(approve_id)
+
+    assert result.success
+    assert ("POST", "http://127.0.0.1:8081/admin/apply_fix") in service_calls
+    record = store.get(result.execute_record_id)
+    assert record["outcome"]["status"] == "success"
+    assert record["policy_reference"]["allowed_by"] == "rule:human_approved_reversible_rollback"
