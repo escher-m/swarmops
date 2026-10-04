@@ -47,7 +47,8 @@ entirely (`ledger.acme.internal` and `swarmops.dev`); locally they are just two 
 
 The dashboard can approve and execute changes, so it **refuses to start without
 authentication configured**. For a laptop demo, `SWARMOPS_AUTH_MODE=dev` reads identities
-from `dev_users.json`. For anything real, point it at your identity provider:
+and their roles from `dev_users.json`; as with a real identity provider, only users holding
+an approver role can approve. For anything real, point it at your identity provider:
 
 ```bash
 SWARMOPS_AUTH_MODE=oidc

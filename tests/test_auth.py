@@ -148,17 +148,19 @@ def test_claims_without_a_subject_are_rejected():
 # ---------------------------------------------------------- authorisation
 
 
-def test_approver_role_is_enforced_under_oidc():
-    cfg = AuthConfig(mode="oidc", approver_roles=("sre-oncall",))
+# Dev mode reads roles from dev_users.json, so a demo must show the same split
+# between approvers and readers that a real deployment has.
+@pytest.mark.parametrize("mode", ["oidc", "dev"])
+def test_approver_role_is_enforced(mode):
+    cfg = AuthConfig(mode=mode, approver_roles=("sre-oncall",))
     assert may_approve(cfg, User("a", "A", roles=("sre-oncall",)))
     assert not may_approve(cfg, User("b", "B", roles=("compliance-reader",)))
     assert not may_approve(cfg, User("c", "C", roles=()))
 
 
-def test_dev_mode_does_not_enforce_roles():
-    # A laptop demo has no group claims; failing closed there would only teach
-    # operators to disable auth entirely.
-    assert may_approve(AuthConfig(mode="dev"), User("a", "A", roles=()))
+def test_disabled_mode_does_not_enforce_roles():
+    # No identity at all, so there is nothing to check a role against.
+    assert may_approve(AuthConfig(mode="disabled"), User("a", "A", roles=()))
 
 
 @pytest.mark.parametrize("path,public", [
@@ -259,3 +261,18 @@ def test_approver_role_gates_the_decide_route():
     cfg = AuthConfig(mode="oidc", approver_roles=("sre-oncall",))
     reader = User("b", "Bob", roles=("compliance-reader",))
     assert not auth_mod.may_approve(cfg, reader)
+
+
+@pytest.mark.parametrize("username, status", [("alice", 303), ("bob", 403)])
+def test_only_an_approver_can_use_the_decide_route_in_dev_mode(
+        dev_app, monkeypatch, username, status):
+    decisions = []
+    monkeypatch.setattr(dev_app, "gate", type("StubGate", (), {
+        "decide": lambda self, **kw: decisions.append(kw) or "approve-record-id"})())
+    client = TestClient(dev_app.app, follow_redirects=False)
+    client.post("/auth/login", data={"username": username, "password": "pw", "next": "/"})
+
+    resp = client.post("/approvals/req-1/decide", data={"decision": "approve", "note": "why"})
+
+    assert resp.status_code == status
+    assert len(decisions) == (1 if status == 303 else 0)

@@ -112,11 +112,12 @@ class AuthConfig:
     def enforce_roles(self) -> bool:
         """Whether approving requires holding one of `approver_roles`.
 
-        Off in dev/disabled mode, because a laptop demo has no group claims to
-        carry and failing closed there would only teach operators to disable
-        auth entirely.
+        On whenever there are real roles to check: OIDC carries them in a claim,
+        and dev mode reads them from dev_users.json, so a demo shows the same
+        separation between approvers and readers. Off only in disabled mode,
+        where there is no identity at all.
         """
-        return self.mode == "oidc"
+        return self.enabled
 
 
 def load_config(env: dict[str, str] | None = None) -> AuthConfig:
