@@ -255,14 +255,6 @@ def test_approving_without_a_session_is_refused(dev_app):
     assert "/auth/login" in resp.headers.get("location", "")
 
 
-def test_approver_role_gates_the_decide_route():
-    """A reader may read the ledger but must not be able to approve."""
-    import dashboard.auth as auth_mod
-    cfg = AuthConfig(mode="oidc", approver_roles=("sre-oncall",))
-    reader = User("b", "Bob", roles=("compliance-reader",))
-    assert not auth_mod.may_approve(cfg, reader)
-
-
 @pytest.mark.parametrize("username, status", [("alice", 303), ("bob", 403)])
 def test_only_an_approver_can_use_the_decide_route_in_dev_mode(
         dev_app, monkeypatch, username, status):
@@ -276,3 +268,12 @@ def test_only_an_approver_can_use_the_decide_route_in_dev_mode(
 
     assert resp.status_code == status
     assert len(decisions) == (1 if status == 303 else 0)
+
+
+def test_approver_role_gates_the_decide_route():
+    """A reader may read the ledger but must not be able to approve."""
+    import dashboard.auth as auth_mod
+    cfg = AuthConfig(mode="oidc", approver_roles=("sre-oncall",))
+    reader = User("b", "Bob", roles=("compliance-reader",))
+    assert not auth_mod.may_approve(cfg, reader)
+
