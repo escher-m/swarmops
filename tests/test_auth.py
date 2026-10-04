@@ -276,4 +276,3 @@ def test_approver_role_gates_the_decide_route():
     cfg = AuthConfig(mode="oidc", approver_roles=("sre-oncall",))
     reader = User("b", "Bob", roles=("compliance-reader",))
     assert not auth_mod.may_approve(cfg, reader)
-
