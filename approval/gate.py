@@ -44,17 +44,20 @@ class PendingApproval:
 
     @property
     def needs_override(self) -> bool:
-        """True when policy would refuse this even with an ordinary approval."""
+        """True when policy refuses this change unless a human overrides it."""
         from ledger.policy import evaluate
 
         pa = self.proposed_action or {}
-        return not evaluate(
+        facts = dict(
             action_type="execute",
             environment=self.target.get("environment"),
             change_type=pa.get("change_type"),
             reversible=pa.get("reversible"),
             blast_radius=pa.get("blast_radius"),
-        ).allowed
+        )
+        # Only when an override would actually permit it. A change a deny rule
+        # forbids cannot be overridden, so asking for one would be misleading.
+        return not evaluate(**facts).allowed and evaluate(**facts, human_override=True).allowed
 
 
 def current_approver_id() -> str:
@@ -82,6 +85,7 @@ class ApprovalGate:
                 invocation_id=invocation_id,
             ),
             target=Target(**target),
+            store=self.store,
         )
 
     # ------------------------------------------------------------- requesting
@@ -199,6 +203,11 @@ class ApprovalGate:
             raise ValueError("a decision note is required: record why you approved or rejected")
 
         item = self.get_pending(request_record_id)
+        if approve and override and not item.needs_override:
+            raise ValueError(
+                "this change does not take an override: policy either permits it "
+                "already or forbids it outright"
+            )
         approver = {
             "approver_id": approver_id or current_approver_id(),
             "approver_type": "human",
