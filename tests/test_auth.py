@@ -15,7 +15,8 @@ from fastapi.testclient import TestClient
 
 from dashboard.auth import (
     AuthConfig, AuthConfigError, SessionManager, User,
-    authenticate_dev, is_public_path, load_config, may_approve, user_from_oidc_claims,
+    authenticate_dev, is_public_path, load_config, may_approve, safe_next,
+    user_from_oidc_claims,
 )
 
 
@@ -168,6 +169,63 @@ def test_dev_mode_does_not_enforce_roles():
 ])
 def test_only_the_intended_paths_are_public(path, public):
     assert is_public_path(path) is public
+
+
+# ------------------------------------------------------- post-login redirect
+
+OFF_SITE = [
+    "https://evil.example/phish", "//evil.example/phish", "/\\evil.example/phish",
+    "\\evil.example", "/\t/evil.example", "/ /evil.example", "javascript:alert(1)",
+    "evil.example", "", "/auth/logout", "/auth/login?next=/",
+]
+
+
+@pytest.mark.parametrize("target", OFF_SITE)
+def test_safe_next_refuses_anything_that_leaves_the_site(target):
+    assert safe_next(target) == "/"
+
+
+@pytest.mark.parametrize("target", ["/", "/approvals", "/incident/INC-1?tab=evidence#top"])
+def test_safe_next_keeps_a_local_path(target):
+    assert safe_next(target) == target
+
+
+@pytest.mark.parametrize("target", OFF_SITE)
+def test_dev_login_never_redirects_off_site(dev_app, target):
+    client = TestClient(dev_app.app, follow_redirects=False)
+    resp = client.post("/auth/login",
+                       data={"username": "alice", "password": "pw", "next": target})
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/"
+
+
+def test_dev_login_returns_to_the_page_that_asked(dev_app):
+    client = TestClient(dev_app.app, follow_redirects=False)
+    resp = client.post("/auth/login",
+                       data={"username": "alice", "password": "pw", "next": "/approvals"})
+    assert resp.headers["location"] == "/approvals"
+
+
+def test_login_with_auth_disabled_never_redirects_off_site(monkeypatch):
+    monkeypatch.setenv("SWARMOPS_AUTH_MODE", "disabled")
+    monkeypatch.setenv("SWARMOPS_ALLOW_INSECURE", "1")
+    monkeypatch.delenv("SWARMOPS_ENV", raising=False)
+    import dashboard.app as app_mod
+    importlib.reload(app_mod)
+    client = TestClient(app_mod.app, follow_redirects=False)
+
+    assert client.get("/auth/login?next=https://evil.example").headers["location"] == "/"
+    assert client.get("/auth/login?next=/approvals").headers["location"] == "/approvals"
+
+
+def test_a_deep_link_with_an_encoded_path_survives_sign_in(dev_app):
+    client = TestClient(dev_app.app, follow_redirects=False)
+    bounced = client.get("/incident/INC%201")
+    assert "next=%2Fincident%2FINC%25201" in bounced.headers["location"]
+
+    resp = client.post("/auth/login",
+                       data={"username": "alice", "password": "pw", "next": "/incident/INC%201"})
+    assert resp.headers["location"] == "/incident/INC%201"
 
 
 # ------------------------------------------------------- dev credentials
