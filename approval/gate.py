@@ -199,6 +199,14 @@ class ApprovalGate:
             raise ValueError("a decision note is required: record why you approved or rejected")
 
         item = self.get_pending(request_record_id)
+        if approve and not override and item.needs_override:
+            # Checked here, on the exact request being recorded, so every caller
+            # (CLI, dashboard, scripts) is held to it rather than each one
+            # remembering to check first.
+            raise ValueError(
+                "policy does not permit executing this change; approving it requires "
+                "an explicit human override, recorded under your name"
+            )
         approver = {
             "approver_id": approver_id or current_approver_id(),
             "approver_type": "human",
