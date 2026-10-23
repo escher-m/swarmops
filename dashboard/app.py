@@ -31,7 +31,7 @@ from dashboard.auth import SESSION_MAX_AGE as SESSION_MAX_AGE_SECONDS
 from dashboard.auth import (
     ANONYMOUS, SESSION_COOKIE, AuthConfig, SessionManager, User,
     authenticate_dev, is_public_path, load_config, may_approve,
-    require_approver, user_from_oidc_claims,
+    require_approver, safe_next, user_from_oidc_claims,
 )
 
 from approval.executor import Executor
@@ -92,7 +92,9 @@ async def attach_user(request: Request, call_next):
     if user is None and not is_public_path(request.url.path):
         if request.headers.get("accept", "").startswith("application/json"):
             return JSONResponse({"error": "not authenticated"}, status_code=401)
-        nxt = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+        # The path arrives decoded; re-encode it so the round trip through the
+        # login page survives spaces and non-ASCII (safe_next only takes ASCII).
+        nxt = quote(request.url.path) + (f"?{request.url.query}" if request.url.query else "")
         return RedirectResponse(f"/auth/login?next={quote(nxt, safe='')}", status_code=303)
 
     return await call_next(request)
@@ -404,7 +406,7 @@ def decide(
             approver_id=user.approver_id,
             display_name=user.display_name,
             channel="web_dashboard",
-            override=bool(override),
+            override=override == "1",
         )
     except (ValueError, LookupError) as exc:
         raise HTTPException(400, str(exc))
@@ -542,10 +544,11 @@ def export_pdf(
 
 @app.get("/auth/login", response_class=HTMLResponse)
 async def login(request: Request, next: str = "/", error: str | None = None):
+    next = safe_next(next)
     if not AUTH.enabled:
-        return RedirectResponse(next or "/", status_code=303)
+        return RedirectResponse(next, status_code=303)
     if AUTH.mode == "oidc":
-        request.session["next"] = next or "/"
+        request.session["next"] = next
         return await oauth.idp.authorize_redirect(request, AUTH.redirect_url)
     return templates.TemplateResponse(
         request, "login.html",
@@ -564,12 +567,13 @@ def login_submit(
 ):
     if AUTH.mode != "dev":
         raise HTTPException(404)
+    next = safe_next(next)
     user = authenticate_dev(AUTH, username, password)
     if user is None:
         # One message for both cases: naming which was wrong enumerates users.
         return RedirectResponse(
             f"/auth/login?next={quote(next, safe='')}&error=invalid", status_code=303)
-    response = RedirectResponse(next or "/", status_code=303)
+    response = RedirectResponse(next, status_code=303)
     _set_session(response, user, request)
     return response
 
@@ -586,8 +590,8 @@ async def auth_callback(request: Request):
     if not claims:
         claims = await oauth.idp.userinfo(token=token)
     user = user_from_oidc_claims(AUTH, dict(claims))
-    nxt = request.session.pop("next", "/")
-    response = RedirectResponse(nxt or "/", status_code=303)
+    nxt = safe_next(request.session.pop("next", "/"))
+    response = RedirectResponse(nxt, status_code=303)
     _set_session(response, user, request)
     return response
 

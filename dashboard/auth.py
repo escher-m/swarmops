@@ -112,11 +112,12 @@ class AuthConfig:
     def enforce_roles(self) -> bool:
         """Whether approving requires holding one of `approver_roles`.
 
-        Off in dev/disabled mode, because a laptop demo has no group claims to
-        carry and failing closed there would only teach operators to disable
-        auth entirely.
+        On whenever there are real roles to check: OIDC carries them in a claim,
+        and dev mode reads them from dev_users.json, so a demo shows the same
+        separation between approvers and readers. Off only in disabled mode,
+        where there is no identity at all.
         """
-        return self.mode == "oidc"
+        return self.enabled
 
 
 def load_config(env: dict[str, str] | None = None) -> AuthConfig:
@@ -310,6 +311,30 @@ def require_approver(request: Request) -> User:
             f"Required one of: {', '.join(config.approver_roles)}.",
         )
     return user
+
+
+def safe_next(target: str | None) -> str:
+    """The post-login redirect target, if it stays on this site; otherwise "/".
+
+    `next` comes from the URL, so a crafted sign-in link could otherwise send
+    someone to another site straight after they authenticate. Only a plain
+    local path is accepted. "//host" and "/\\host" are refused because browsers
+    read both as another host. Only printable ASCII is allowed, because browsers
+    strip control characters before parsing and a real path arrives
+    percent-encoded anyway. The /auth/ routes are refused too, so a link cannot
+    sign someone in and straight back out.
+    """
+    if (
+        not target
+        or not target.startswith("/")
+        or target.startswith("//")
+        or "\\" in target
+        or not all(0x21 <= ord(ch) <= 0x7E for ch in target)
+        or target == "/auth"
+        or target.startswith("/auth/")
+    ):
+        return "/"
+    return target
 
 
 def is_public_path(path: str) -> bool:

@@ -15,7 +15,8 @@ from fastapi.testclient import TestClient
 
 from dashboard.auth import (
     AuthConfig, AuthConfigError, SessionManager, User,
-    authenticate_dev, is_public_path, load_config, may_approve, user_from_oidc_claims,
+    authenticate_dev, is_public_path, load_config, may_approve, safe_next,
+    user_from_oidc_claims,
 )
 
 
@@ -148,17 +149,19 @@ def test_claims_without_a_subject_are_rejected():
 # ---------------------------------------------------------- authorisation
 
 
-def test_approver_role_is_enforced_under_oidc():
-    cfg = AuthConfig(mode="oidc", approver_roles=("sre-oncall",))
+# Dev mode reads roles from dev_users.json, so a demo must show the same split
+# between approvers and readers that a real deployment has.
+@pytest.mark.parametrize("mode", ["oidc", "dev"])
+def test_approver_role_is_enforced(mode):
+    cfg = AuthConfig(mode=mode, approver_roles=("sre-oncall",))
     assert may_approve(cfg, User("a", "A", roles=("sre-oncall",)))
     assert not may_approve(cfg, User("b", "B", roles=("compliance-reader",)))
     assert not may_approve(cfg, User("c", "C", roles=()))
 
 
-def test_dev_mode_does_not_enforce_roles():
-    # A laptop demo has no group claims; failing closed there would only teach
-    # operators to disable auth entirely.
-    assert may_approve(AuthConfig(mode="dev"), User("a", "A", roles=()))
+def test_disabled_mode_does_not_enforce_roles():
+    # No identity at all, so there is nothing to check a role against.
+    assert may_approve(AuthConfig(mode="disabled"), User("a", "A", roles=()))
 
 
 @pytest.mark.parametrize("path,public", [
@@ -168,6 +171,63 @@ def test_dev_mode_does_not_enforce_roles():
 ])
 def test_only_the_intended_paths_are_public(path, public):
     assert is_public_path(path) is public
+
+
+# ------------------------------------------------------- post-login redirect
+
+OFF_SITE = [
+    "https://evil.example/phish", "//evil.example/phish", "/\\evil.example/phish",
+    "\\evil.example", "/\t/evil.example", "/ /evil.example", "javascript:alert(1)",
+    "evil.example", "", "/auth/logout", "/auth/login?next=/",
+]
+
+
+@pytest.mark.parametrize("target", OFF_SITE)
+def test_safe_next_refuses_anything_that_leaves_the_site(target):
+    assert safe_next(target) == "/"
+
+
+@pytest.mark.parametrize("target", ["/", "/approvals", "/incident/INC-1?tab=evidence#top"])
+def test_safe_next_keeps_a_local_path(target):
+    assert safe_next(target) == target
+
+
+@pytest.mark.parametrize("target", OFF_SITE)
+def test_dev_login_never_redirects_off_site(dev_app, target):
+    client = TestClient(dev_app.app, follow_redirects=False)
+    resp = client.post("/auth/login",
+                       data={"username": "alice", "password": "pw", "next": target})
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/"
+
+
+def test_dev_login_returns_to_the_page_that_asked(dev_app):
+    client = TestClient(dev_app.app, follow_redirects=False)
+    resp = client.post("/auth/login",
+                       data={"username": "alice", "password": "pw", "next": "/approvals"})
+    assert resp.headers["location"] == "/approvals"
+
+
+def test_login_with_auth_disabled_never_redirects_off_site(monkeypatch):
+    monkeypatch.setenv("SWARMOPS_AUTH_MODE", "disabled")
+    monkeypatch.setenv("SWARMOPS_ALLOW_INSECURE", "1")
+    monkeypatch.delenv("SWARMOPS_ENV", raising=False)
+    import dashboard.app as app_mod
+    importlib.reload(app_mod)
+    client = TestClient(app_mod.app, follow_redirects=False)
+
+    assert client.get("/auth/login?next=https://evil.example").headers["location"] == "/"
+    assert client.get("/auth/login?next=/approvals").headers["location"] == "/approvals"
+
+
+def test_a_deep_link_with_an_encoded_path_survives_sign_in(dev_app):
+    client = TestClient(dev_app.app, follow_redirects=False)
+    bounced = client.get("/incident/INC%201")
+    assert "next=%2Fincident%2FINC%25201" in bounced.headers["location"]
+
+    resp = client.post("/auth/login",
+                       data={"username": "alice", "password": "pw", "next": "/incident/INC%201"})
+    assert resp.headers["location"] == "/incident/INC%201"
 
 
 # ------------------------------------------------------- dev credentials
@@ -253,9 +313,67 @@ def test_approving_without_a_session_is_refused(dev_app):
     assert "/auth/login" in resp.headers.get("location", "")
 
 
+@pytest.mark.parametrize("username, status", [("alice", 303), ("bob", 403)])
+def test_only_an_approver_can_use_the_decide_route_in_dev_mode(
+        dev_app, monkeypatch, username, status):
+    decisions = []
+    monkeypatch.setattr(dev_app, "gate", type("StubGate", (), {
+        "decide": lambda self, **kw: decisions.append(kw) or "approve-record-id"})())
+    client = TestClient(dev_app.app, follow_redirects=False)
+    client.post("/auth/login", data={"username": username, "password": "pw", "next": "/"})
+
+    resp = client.post("/approvals/req-1/decide", data={"decision": "approve", "note": "why"})
+
+    assert resp.status_code == status
+    assert len(decisions) == (1 if status == 303 else 0)
+
+
 def test_approver_role_gates_the_decide_route():
     """A reader may read the ledger but must not be able to approve."""
     import dashboard.auth as auth_mod
     cfg = AuthConfig(mode="oidc", approver_roles=("sre-oncall",))
     reader = User("b", "Bob", roles=("compliance-reader",))
     assert not auth_mod.may_approve(cfg, reader)
+
+
+class _StubGate:
+    """Stands in for the approval gate so the decide route can run without a ledger."""
+
+    def __init__(self, error=None):
+        self.error = error
+        self.decisions = []
+
+    def decide(self, **kwargs):
+        if self.error:
+            raise self.error
+        self.decisions.append(kwargs)
+        return "approve-record-id"
+
+
+def _post_decision(dev_app, monkeypatch, stub, **form):
+    monkeypatch.setattr(dev_app, "gate", stub)
+    client = TestClient(dev_app.app, follow_redirects=False)
+    client.post("/auth/login", data={"username": "alice", "password": "pw", "next": "/"})
+    return client.post("/approvals/req-1/decide", data={"note": "why", **form})
+
+
+@pytest.mark.parametrize("form, override", [
+    ({"decision": "approve", "override": "1"}, True),
+    ({"decision": "approve"}, False),
+    ({"decision": "approve", "override": "0"}, False),
+])
+def test_decide_route_passes_the_override_box_through(dev_app, monkeypatch, form, override):
+    stub = _StubGate()
+    resp = _post_decision(dev_app, monkeypatch, stub, **form)
+    assert resp.status_code == 303
+    assert stub.decisions[0]["override"] is override
+
+
+@pytest.mark.parametrize("error", [
+    ValueError("policy does not permit executing this change"),
+    LookupError("no pending approval matching 'req-1'"),
+])
+def test_decide_route_reports_a_refused_decision_as_a_400(dev_app, monkeypatch, error):
+    resp = _post_decision(dev_app, monkeypatch, _StubGate(error), decision="approve")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == str(error)
