@@ -13,8 +13,7 @@ import psycopg
 import pytest
 
 from ledger.canonical import GENESIS_HASH
-from ledger.recorder import Actor, PolicyRefusal, Recorder, Target
-from ledger.store import LedgerStore
+from ledger.recorder import PolicyRefusal
 from ledger.validation import RecordValidationError
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,36 +24,6 @@ pytestmark = pytest.mark.skipif(
     not (ROOT / ".pgdata" / "postmaster.pid").exists(),
     reason="local PostgreSQL cluster is not running (scripts/pg.sh start)",
 )
-
-
-@pytest.fixture(scope="session")
-def test_db():
-    name = f"swarmops_test_{uuid.uuid4().hex[:10]}"
-    with psycopg.connect(ADMIN_DSN, autocommit=True) as conn:
-        conn.execute(f'CREATE DATABASE "{name}"')
-    dsn = f"host={SOCKET} port=5433 user=postgres dbname={name}"
-    with psycopg.connect(dsn) as conn:
-        for sql in sorted((ROOT / "ledger" / "sql").glob("*.sql")):
-            conn.execute(sql.read_text())
-        conn.commit()
-    yield dsn
-    with psycopg.connect(ADMIN_DSN, autocommit=True) as conn:
-        conn.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
-
-
-@pytest.fixture
-def store(test_db):
-    return LedgerStore(test_db)
-
-
-@pytest.fixture
-def recorder(store):
-    return Recorder(
-        incident_id=f"INC-{uuid.uuid4().hex[:6]}",
-        actor=Actor("test-agent", "0.0.1", "test", "inv-1"),
-        target=Target("k8s_deployment", "staging/api", "staging"),
-        store=store,
-    )
 
 
 def evidence(recorder):

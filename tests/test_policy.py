@@ -108,3 +108,24 @@ def test_approving_does_not_by_itself_permit_execution():
     assert not evaluate(action_type="execute", environment="prod",
                         change_type="schema_migration", reversible=False,
                         blast_radius="single_service").allowed
+
+
+def test_an_approval_given_as_an_override_cites_the_override():
+    # rule:human_approval_decision matches every approval, so if it were cited
+    # here the executor could never tell an override approval from a plain one.
+    d = evaluate(action_type="approve", environment="staging", human_override=True)
+    assert d.allowed
+    assert d.rule_id == "human_override"
+
+
+def test_an_override_never_beats_an_explicit_deny():
+    d = evaluate(action_type="execute", environment="staging", change_type="rollback_deploy",
+                 reversible=False, blast_radius="single_service", human_override=True)
+    assert not d.allowed
+    assert d.rule_id == "rule:deny_irreversible_change"
+
+
+def test_an_override_does_not_replace_a_rule_that_already_permits_execution():
+    d = evaluate(action_type="execute", environment="staging", change_type="rollback_deploy",
+                 reversible=True, blast_radius="single_service", human_override=True)
+    assert d.rule_id == "rule:human_approved_reversible_rollback"

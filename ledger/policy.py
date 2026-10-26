@@ -155,17 +155,12 @@ def evaluate(
         if matched_allow is None:
             matched_allow = rule
 
-    if matched_allow is not None:
-        return Decision(
-            allowed=True,
-            rule_id=matched_allow["id"],
-            description=matched_allow["description"],
-            requires_approval=bool(matched_allow.get("requires_approval", False)),
-            policy_id=pid,
-            policy_digest=digest,
-        )
-
-    if human_override:
+    # An override applies only when no standing rule permits the action, and
+    # never against a deny (those returned above). The exception is recording
+    # the approval itself: rule:human_approval_decision matches every approve,
+    # so an approval given as an override must cite human_override or the
+    # executor could never tell it was one.
+    if human_override and (matched_allow is None or action_type == "approve"):
         override = next((r for r in doc["rules"] if r["id"] == "human_override"), None)
         if override and action_type in override.get("applies_to", []):
             return Decision(
@@ -177,6 +172,16 @@ def evaluate(
                 policy_digest=digest,
                 reason="no standing rule permits this; a named human accepted responsibility",
             )
+
+    if matched_allow is not None:
+        return Decision(
+            allowed=True,
+            rule_id=matched_allow["id"],
+            description=matched_allow["description"],
+            requires_approval=bool(matched_allow.get("requires_approval", False)),
+            policy_id=pid,
+            policy_digest=digest,
+        )
 
     return Decision(
         allowed=False,
